@@ -50,7 +50,21 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // تهيئة Firebase والتطبيق في الخلفية
-  await Firebase.initializeApp();
+  try {
+    await Firebase.initializeApp(
+      options: const FirebaseOptions(
+        apiKey: 'AIzaSyCXPm9uDXkmXTuN1tIwh1Vgc2War5wU4b0',
+        appId: '1:414036126974:ios:0901f66035f8cc516109af',
+        messagingSenderId: '414036126974',
+        projectId: 'v-center-5f74b',
+        storageBucket: 'v-center-5f74b.firebasestorage.app',
+      ),
+    );
+  } catch (e) {
+    print('❌ Firebase initialization error: $e');
+    // محاولة التهيئة بدون options (سيحاول العثور على GoogleService-Info.plist)
+    await Firebase.initializeApp();
+  }
   sharedPreferences = await SharedPreferences.getInstance();
   await Hive.initFlutter();
   Hive.registerAdapter(CartModelAdapter());
