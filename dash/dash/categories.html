@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" href="./css/style.css" />
+    <!-- Bootstrap CSS -->
+    <script src="https://kit.fontawesome.com/bbfd9c6b3d.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.0/Chart.bundle.js"></script>
+    <link rel="stylesheet" href="http://cdn.datatables.net/1.10.13/css/jquery.dataTables.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+    <script src="https://cdn.datatables.net/1.10.13/js/jquery.dataTables.min.js"></script>
+     <script>
+      $(document).ready(function () {
+        $("#slider-container").load("slider.html");
+        $('#loading').show();
+        $.ajax({
+          url: 'http://145.223.33.238:9099/aqs/api/v1/getCategories',
+          type: 'GET',
+          dataType: 'json',
+          success: function (data) {
+            $('#loading').hide();
+            var counter = 1;
+            $('#myTable').DataTable({
+              "data": data,
+              "columns": [
+                  {
+                    "data": null,
+                    "render": function (data, type, row, meta) {
+                        return counter++;
+                    }
+                },
+            	{
+    "data": "image",
+    "render": function(data, type, row) {
+        return '<img src="'+data+'" class="prod_img"/>';
+    }
+},
+			{ "data": "title"},
+      {
+                  "data": "active",
+                  "render": function (data, type, row) {
+                    return data === 1 ? 'فعال' : 'غير فعال';
+                  }
+                },
+				{
+    "data": "id",
+    "render": function(data, type, row) {
+       return '<a href="edit/edit_category.html?id=' + data + '"><i class="fas fa-edit" aria-hidden="true"></i></a>';
+    }
+},
+		{
+    "data": "id",
+    "render": function(data, type, row) {
+        return '<a href="#"><i class="fas fa-trash" onclick="deleteitem(this);" id='+data+' aria-hidden="true" style="color: rgb(183, 39, 39);"></i><a/>';
+    }
+},
+		
+        ],
+              "language": {
+                "info": "",
+                "search": "بحث : ",
+                "lengthMenu": " عرض _MENU_ عنصر ",
+                "paginate": {
+                  "first": "الاول",
+                  "last": "الاخير",
+                  "next": "التالي",
+                  "previous": "السابق"
+                },
+              }
+            });
+               $('#myTable').on('click', '.fa-trash', function () {
+                var Id = $(this).attr('id');
+                deleteCategory(Id);
+            });
+          },
+          error: function (xhr, status, error) {
+            $('#loading').hide();
+            console.error('Error:', error);
+          }
+        });
+      });
+      function deleteCategory(Id) {
+    if (confirm("هل انت متاكد من حذف القسم ؟")) {
+        $.ajax({
+            url: 'http://145.223.33.238:9099/aqs/api/v1/deleteCategory/' + Id,
+            type: 'DELETE',
+            success: function (response) {
+                    alert(response);              
+                    location.reload();
+            },
+            error: function (xhr, status, error) {
+                console.error('Error:', error);
+            }
+        });
+    }
+      }
+
+    </script>
+    <title>لوحة التحكم</title>
+   <style>
+      #loading {
+           display: table;
+  margin: 0 auto;
+  position: fixed;
+  display: block;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  text-align: center;
+  opacity: 0.7;
+  background-color: #fff;
+  z-index: 99;
+}
+
+#loading-image {
+  position: absolute;
+  top: 100px;
+  left: 240px;
+  z-index: 100;
+}
+input[type=checkbox] {
+    transform: scale(1.5);
+     padding:100px;
+}
+  </style>
+</head>
+
+
+<body>
+       <div id="loading">
+  <img id="loading-image" src="https://upload.wikimedia.org/wikipedia/commons/b/b1/Loading_icon.gif?20151024034921" alt="Loading..." />
+</div>
+    <!--Main Navigation-->
+ 
+    <div id="slider-container">
+      <!-- سيتم تحميل محتوى الـ slider هنا -->
+    </div>
+      <!--Main Navigation-->
+
+      <!--Main layout-->
+      <main style="margin-top: 10px;">
+        <div class="container pt-3  justify-content-center" >
+            <section id="boxes" class="py-5">
+                <div class="container">
+                      <h1 class="details">البراندات</h1>
+                      
+                   <br/>
+                   <div class="text-right pb-3 pr-5">
+                    <a href="./addCategory.html">  <button type="button" class="btn btn-primary float-rigth pull-right" data-toggle="modal" data-target="#exampleModal">
+                      اضافة قسم
+                    </button></a>
+                   </div>
+                   
+                   <table id="myTable" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">
+                    <thead>
+                      <tr>
+                        <th class="th-sm">التسلسل</th>
+                        <th class="th-sm">الصورة</th>
+                        <th class="th-sm">اسم القسم</th>
+                        <th class="th-sm">الحالة</th>
+                        <th class="th-sm"></th>
+                        <th class="th-sm"></th>
+                      </tr>
+                    </thead>
+                    <tbody class="tBody">
+                      
+                     
+                    </tbody>
+                   
+                  </table>
+                  
+                
+                  <hr>
+
+                <p>
+                     برمجة وتصميم علي سيكو
+                    </p>
+                </div>
+                
+              </section>
+
+
+        </div>
+      </main>
+      <!--Main layout-->
+</body>
+
+</html>

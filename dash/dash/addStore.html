@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" href="./css/style.css" />
+    <!-- Bootstrap CSS -->
+    <script src="https://kit.fontawesome.com/bbfd9c6b3d.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.0/Chart.bundle.js"></script>
+    <link rel="stylesheet" href="http://cdn.datatables.net/1.10.13/css/jquery.dataTables.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+    <script src="https://cdn.datatables.net/1.10.13/js/jquery.dataTables.min.js"></script>
+    <script>
+     $(document).ready(function () {
+        $("#slider-container").load("slider.html");
+        $('#loading').show();
+        $.ajax({
+            
+        url: 'http://145.223.33.238:9099/aqs/api/v1/getCategories', // استبدل بالـ URL الصحيح لـ API الفئات
+        type: 'GET',
+        dataType: 'json',
+        success: function (data) {
+          // تعبئة عنصر select بالفئات المسترجعة
+          var options = '<option disabled selected value> -- اختر القسم -- </option>';
+          data.forEach(function(category) {
+            options += '<option value="' + category.id + '">' + category.title + '</option>';
+          });
+          $('#category').html(options);
+          $('#loading').hide();
+        },
+        error: function (xhr, status, error) {
+          console.error('Error:', error);
+          $('#loading').hide();
+        }
+      });
+      });
+
+    </script>
+    <title>لوحة التحكم</title>
+    <style>
+        .preview-image {
+        max-width: 100px; /* تحديد الحجم الأقصى للصورة */
+        margin: 5px; /* تباعد بين الصور */
+        position: relative; /* لتحديد موقع الزر بالنسبة للصورة */
+    }
+    .delete-btn {
+        position: absolute; /* لوضع الزر فوق الصورة */
+        top: 0;
+        right: 0;
+        background-color: red;
+        color: white;
+        border: none;
+        cursor: pointer;
+    }
+    #loading {
+  display: table;
+    margin: 0 auto;
+    position: fixed;
+    display: block;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    text-align: center;
+    opacity: 0.7;
+    background-color: #fff;
+    z-index: 99;
+    }
+    #loading-image {
+      position: absolute;
+      top: 100px;
+      left: 240px;
+      z-index: 100;
+    }
+    </style>
+</head>
+
+
+<body>
+    <!--Main Navigation-->
+ <div id="loading">
+  <img id="loading-image" src="https://upload.wikimedia.org/wikipedia/commons/b/b1/Loading_icon.gif?20151024034921" alt="Loading..." />
+</div>
+
+    <div id="slider-container">
+      <!-- سيتم تحميل محتوى الـ slider هنا -->
+    </div>
+      <!--Main Navigation-->
+
+      <!--Main layout-->
+      <main style="margin-top: 10px;">
+        <div class="container pt-3  justify-content-center" >
+            <section id="boxes" class="py-5">
+                <div class="container">
+                      <h1 class="details">اضافة منتج جديد</h1>
+                   <br/>
+                   <div class="text-right pb-3 pr-5">
+                    <button type="button" class="btn btn-primary float-rigth pull-right" id="upload">
+                     اضافة 
+                   </button>
+                   </div>
+                   <div class="container">
+                    <ul class="nav nav-tabs" id="myTabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" id="basic-info-tab" data-toggle="tab" href="#basic-info" role="tab" aria-controls="basic-info" aria-selected="true">المعلومات الأساسية</a>
+                        </li>
+                        
+                        <!-- إضافة المزيد من العلامات التبويبية هنا -->
+                    </ul>
+
+                    <div class="tab-content" id="myTabsContent" dir="rtl" style="text-align: right;">
+                        <div class="tab-pane fade show active" id="basic-info" role="tabpanel" aria-labelledby="basic-info-tab" style="padding: 20px;">
+                            <div class="mb-3">
+                                <label for="title" class="form-label" style="text-align: right;">اسم المنتج</label>
+                                <input type="text" class="form-control" id="title">
+                            </div>
+                            <div class="mb-3">
+                                <label for="storeNameArabic" class="form-label" style="text-align: right;">صورة المنتج الرئيسية</label>
+                                <input class="form-control" type="file" id="logo" name="logo" multiple accept="image/*">
+                            </div>
+                            <div class="mb-3">
+                                <label for="category" class="form-label" style="text-align: right;">البراند</label>
+                                <select class="form-control" id="category" onchange="getCategories(this.value)">
+                                    <option disabled selected value> -- اختر البراند -- </option>
+                                    <!-- Add more options as needed -->
+                                </select>
+                            </div>
+                              <div class="mb-3">
+                                <label for="subCategory" class="form-label" style="text-align: right;">القسم</label>
+                                <select class="form-control" id="subCategory">
+                                    <option disabled selected value> -- اختر القسم -- </option>
+                                    <!-- Add more options as needed -->
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="description" class="form-label" style="text-align: right;">وصف المنتج</label>
+                                <textarea class="form-control" id="description" rows="4"></textarea>
+                            </div>
+                            <div class="mb-3">
+                              <label for="price" class="form-label" style="text-align: right;">سعر المنتج</label>
+                              <input type="text" class="form-control" id="price">
+                          </div>
+                        </div>
+                        <!-- إضافة المزيد من محتوى العلامات التبويبية هنا -->
+                    </div>
+                </div>
+                
+                  
+                
+                  <hr>
+
+                <p><a href="#">
+                     برمجة وتصميم علي سيكو
+                    </a>  </p>
+                </div>
+                
+              </section>
+
+
+        </div>
+      </main>
+      <!--Main layout-->
+</body>
+
+<script>
+function getCategories(id){
+        $.ajax({
+    url: 'http://145.223.33.238:9099/aqs/api/v1/getSubCategoryByCategory/' + id, // استبدل بالـ URL الصحيح لـ API الفئات
+    type: 'GET',
+    dataType: 'json',
+    success: function (data) {
+      // تعبئة عنصر select بالفئات المسترجعة
+      var options = '<option disabled selected value> -- اختر القسم -- </option>';
+      data.forEach(function(category) {
+        options += '<option value="' + category.id + '">' + category.title + '</option>';
+      });
+      $('#subCategory').html(options);
+    },
+    error: function (xhr, status, error) {
+      console.error('Error:', error);
+    }
+  });
+    }
+ $('#upload').on('click', function() {
+  // البيانات الأساسية للمنتج
+  
+  var file_data = $('#logo').prop('files')[0];
+  var title = $('#title').val();
+  var description = $('#description').val();
+  var category = $('#category').val();
+  var subCategory = $('#subCategory').val();
+  var price = $('#price').val();
+  
+  //
+
+  // التحقق من الحقول الفارغة
+  if (!title || !description || !category || !price ) {
+    alert('يرجى ملء جميع الحقول المطلوبة.');
+    return; // لم يتم إرسال الطلب إذا كان أحد الحقول فارغًا
+  }
+
+  // التحقق من الحقول images و offers و ads
+
+
+$('#loading').show();
+  // إنشاء كائن FormData وإرسال الطلب AJAX
+  var form_data = new FormData();
+  form_data.append('logo', file_data);
+  form_data.append('title', title);
+  form_data.append('category', category);
+  form_data.append('subCategory', subCategory);
+  form_data.append('description', description);
+  form_data.append('price', price);
+
+
+
+  // إرسال الطلب AJAX
+  $.ajax({
+    url: 'http://145.223.33.238:9099/aqs/api/v1/addProduct',
+    type: 'post',
+    data: form_data,
+    contentType: false,
+    processData: false,
+    success: function(response) {
+        $('#loading').hide();
+         alert('تم الحفظ بنجاح');
+    },
+    error: function(xhr, status, error) {
+        $('#loading').hide();
+      console.error('حدث خطأ:', error);
+      alert(error);
+    }
+  });
+});
+
+
+    var images = [];
+
+// عند تغيير قيمة حقل الصور الثانوية
+$('#secondaryImages').on('change', function() {
+  // التحقق من عدم تجاوز العدد الأقصى للصور
+  if (images.length + this.files.length > 10) {
+    alert('لا يمكنك رفع أكثر من 10 صور.');
+    return;
+  }
+
+  // إضافة الصور الجديدة إلى المصفوفة
+  for (var i = 0; i < this.files.length; i++) {
+    images.push(this.files[i]);
+  }
+
+  // تفريغ محتوى مربع المعاينة وعرض الصور المختارة
+  updateImagesPreview();
+});
+function updateImagesPreview() {
+  $('#secondaryImagesPreview').empty();
+  images.forEach(function(file, index) {
+    var img = document.createElement('img');
+    img.src = URL.createObjectURL(file);
+    img.classList.add('preview-image');
+    img.onload = function() {
+      URL.revokeObjectURL(img.src); // تحرير الذاكرة
+    };
+    img.setAttribute('data-index', index);
+    $('#secondaryImagesPreview').append(img);
+  });
+}
+</script>
+
+</html>

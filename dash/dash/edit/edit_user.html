@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" href="../css/style.css" />
+    <!-- Bootstrap CSS -->
+    <script src="https://kit.fontawesome.com/bbfd9c6b3d.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.0/Chart.bundle.js"></script>
+    <link rel="stylesheet" href="http://cdn.datatables.net/1.10.13/css/jquery.dataTables.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+    <script src="https://cdn.datatables.net/1.10.13/js/jquery.dataTables.min.js"></script>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+    <script>
+    $(document).ready(function () {
+        $("#slider-container").load("sliderEdit.html");
+        $('#loading').show();
+        var item = new URLSearchParams(window.location.search).get("id");
+        $.ajax({
+                url: 'http://89.116.110.51:9099/aqs/api/v1/getUser/'+item,
+                type: 'GET',
+                dataType: 'json',
+                success: function (data) {
+                    if(data.length > 0) {
+                        var discount = data[0]; 
+                        //name
+                        $('#name').val(discount.name);
+                        $('#phone').val(discount.phone);
+                        $('#city').val(discount.city);
+                        $('#address').val(discount.address);
+                        $('#password').val(discount.password);
+                        //store-id
+                        
+                    } else {
+                        // Handle case when no category data is returned
+                        console.error('No category data found.');
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error('Error:', error);
+                }
+            });
+      
+
+        // Add click event listener to the save button
+        $("#save").click(function() {
+            var item = new URLSearchParams(window.location.search).get("id");
+            var name = $("#name").val();
+            var phone = $("#phone").val();
+            var city = $("#city").val();
+            var address = $("#address").val();
+            var password = $("#password").val();
+            // Send data to the API
+            $.ajax({
+                url: 'http://89.116.110.51:9099/aqs/api/v1/updateUser',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    id: item,
+                    name: name,
+                    phone: phone,
+                    city:city,
+                    address:address,
+                    password:password
+                }),
+                success: function(response) {
+                  alert(response);
+                  location.reload();
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error adding discount:', error);
+                }
+            });
+        });
+    });
+    </script>
+    <title>لوحة التحكم</title>
+</head>
+
+<body>
+    <!--Main Navigation-->
+    <div id="slider-container">
+
+    </div>
+    <main style="margin-top: 10px;">
+        <div class="container pt-3 justify-content-center">
+            <section id="boxes" class="py-5">
+                <div class="container">
+                    <h1 class="details">تعديل مستخدم</h1>
+                    <br/>
+                    <div class="input-group mb-3">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text" id="inputGroup-sizing-default">اسم المستخدم</span>
+                        </div>
+                        <input type="text" class="form-control ui-autocomplete-input" id="name" aria-label="اسم المستخدم" aria-describedby="inputGroup-sizing-default" autocomplete="off">
+                        <input type="hidden" id="store-id">
+                    </div>
+                    <div class="input-group mb-3">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text" id="inputGroup-sizing-default">هاتف المستخدم</span>
+                        </div>
+                        <input type="text" class="form-control" id="phone" aria-label="هاتف المستخدم" aria-describedby="inputGroup-sizing-default">
+                    </div>
+                    <div class="input-group mb-3">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text" id="inputGroup-sizing-default">محافظة المستخدم</span>
+                        </div>
+                        <input type="text" class="form-control" id="city" aria-label="محافظة المستخدم" aria-describedby="inputGroup-sizing-default">
+                    </div>
+
+                    <div class="input-group mb-3">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text" id="inputGroup-sizing-default">عنوان المستخدم</span>
+                        </div>
+                        <input type="text" class="form-control" id="address" aria-label="عنوان المستخدم" aria-describedby="inputGroup-sizing-default">
+                    </div>
+
+                    <div class="input-group mb-3">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text" id="inputGroup-sizing-default">كلمةالسر</span>
+                        </div>
+                        <input type="text" class="form-control" id="password" aria-label="كلمة السر" aria-describedby="inputGroup-sizing-default">
+                    </div>
+                    <div class="col text-center">
+                        <button type="button" id="save" class="btn btn-success">حفظ التعديلات</button>
+                    </div>
+                    <hr>
+                    <p><a href="#">
+                        برمجة وتصميم علي سيكو
+                    </a></p>
+                </div>
+            </section>
+        </div>
+    </main>
+</body>
+</html>

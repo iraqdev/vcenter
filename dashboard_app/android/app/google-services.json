@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "414036126974",
+    "project_id": "v-center-5f74b",
+    "storage_bucket": "v-center-5f74b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:414036126974:android:dashboard_app_unique_id",
+        "android_client_info": {
+          "package_name": "com.example.dashboard_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyATgTQGo7EANQIl3cs0JE9DoDQK5bJLQFo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

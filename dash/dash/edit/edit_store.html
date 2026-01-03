@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" href="..//css/style.css" />
+    <!-- Bootstrap CSS -->
+    <script src="https://kit.fontawesome.com/bbfd9c6b3d.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.0/Chart.bundle.js"></script>
+    <link rel="stylesheet" href="http://cdn.datatables.net/1.10.13/css/jquery.dataTables.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+    <script src="https://cdn.datatables.net/1.10.13/js/jquery.dataTables.min.js"></script>
+    <script>
+     $(document).ready(function () {
+        $("#slider-container").load("./sliderEdit.html");
+        $('#loading').show();
+         var item = new URLSearchParams(window.location.search).get("id");
+         $.ajax({
+        url: 'http://145.223.33.238:9099/aqs/api/v1/getCategories', // استبدل بالـ URL الصحيح لـ API الفئات
+        type: 'GET',
+        dataType: 'json',
+        success: function (data) {
+          // تعبئة عنصر select بالفئات المسترجعة
+          var options = '<option disabled selected value> -- اختر القسم -- </option>';
+          data.forEach(function(category) {
+            options += '<option value="' + category.id + '">' + category.title + '</option>';
+          });
+          $('#category').html(options);
+        },
+        error: function (xhr, status, error) {
+          console.error('Error:', error);
+          $('#loading').hide();
+        }
+      });
+       $.ajax({
+        url: 'http://145.223.33.238:9099/aqs/api/v1/getSubCategories', // استبدل بالـ URL الصحيح لـ API الفئات
+        type: 'GET',
+        dataType: 'json',
+        success: function (data) {
+          // تعبئة عنصر select بالفئات المسترجعة
+          var options = '<option disabled selected value> -- اختر القسم الفرعي -- </option>';
+          data.forEach(function(category) {
+            options += '<option value="' + category.id + '">' + category.title + '</option>';
+          });
+          $('#subCategory').html(options);
+        },
+        error: function (xhr, status, error) {
+          console.error('Error:', error);
+          $('#loading').hide();
+        }
+      });
+      //getStore
+       $.ajax({
+    url: 'http://145.223.33.238:9099/aqs/api/v1/getProduct/' + item,
+    type: 'GET',
+    dataType: 'json',
+    success: function(data) {
+        console.log(data);
+        $('#title').val(data.title);
+        $('#description').val(data.description);
+        $('#price').val(data.price);
+        $('#model').val(data.model);
+        $('#image').attr('src', data.image);
+        var selectedCategoryId = data.category;
+        $('#category').val(selectedCategoryId);
+         var selectedSubCategoryId = data.subCategory;
+        $('#subCategory').val(selectedSubCategoryId);
+
+
+        
+        
+        
+        
+
+        $('#loading').hide();
+    },
+    error: function(xhr, status, error) {
+        console.error('Error:', error);
+        $('#loading').hide();
+    }
+});
+      });
+
+    </script>
+    <title>لوحة التحكم</title>
+    <style>
+        .preview-image {
+        max-width: 100px; /* تحديد الحجم الأقصى للصورة */
+        margin: 5px; /* تباعد بين الصور */
+        position: relative; /* لتحديد موقع الزر بالنسبة للصورة */
+    }
+    .delete-btn {
+        position: absolute; /* لوضع الزر فوق الصورة */
+        top: 0;
+        right: 0;
+        background-color: red;
+        color: white;
+        border: none;
+        cursor: pointer;
+    }
+    #loading {
+  display: table;
+    margin: 0 auto;
+    position: fixed;
+    display: block;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    text-align: center;
+    opacity: 0.7;
+    background-color: #fff;
+    z-index: 99;
+    }
+    #loading-image {
+      position: absolute;
+      top: 100px;
+      left: 240px;
+      z-index: 100;
+    }
+        .image-upload>input {
+  display: none;
+}
+.img_edit {
+  width: 100px; /* حدد العرض المطلوب */
+  height: 100px; /* حدد الارتفاع المطلوب */
+  border-radius: 50%; /* جعل الصورة دائرية */
+  object-fit: cover; /* لضمان ملء الصورة للمربع بدون تشويه */
+}
+    </style>
+</head>
+
+
+<body>
+    <!--Main Navigation-->
+ <div id="loading">
+  <img id="loading-image" src="https://upload.wikimedia.org/wikipedia/commons/b/b1/Loading_icon.gif?20151024034921" alt="Loading..." />
+</div>
+
+   
+      <!--Main Navigation-->
+   <div id="slider-container">
+      <!-- سيتم تحميل محتوى الـ slider هنا -->
+    </div>
+      <!--Main layout-->
+      <main style="margin-top: 10px;">
+        <div class="container pt-3  justify-content-center" >
+            <section id="boxes" class="py-5">
+                <div class="container">
+                      <h1 class="details">تعديل منتج</h1>
+                   <br/>
+                   <div class="text-right pb-3 pr-5">
+                        <a href="../products.html"><button type="button" id="cancel" class="btn btn-danger">الغاء</button></a>
+                    <button type="button" class="btn btn-primary float-rigth pull-right" id="upload">
+                     حفظ 
+                   </button>
+                   </div>
+                   <div class="container">
+                    <ul class="nav nav-tabs" id="myTabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" id="basic-info-tab" data-toggle="tab" href="#basic-info" role="tab" aria-controls="basic-info" aria-selected="true">المعلومات الأساسية</a>
+                        </li>
+                       
+                        <!-- إضافة المزيد من العلامات التبويبية هنا -->
+                    </ul>
+
+                    <div class="tab-content" id="myTabsContent" dir="rtl" style="text-align: right;">
+                        <div class="tab-pane fade show active" id="basic-info" role="tabpanel" aria-labelledby="basic-info-tab" style="padding: 20px;">
+                            <div class="mb-1">
+                                <div class="h-100 d-flex align-items-center justify-content-center">
+                                  <div class="image-upload">
+                              <label for="file-input">
+                                  <img id="image" class="img_edit"/>
+                              </label>
+                              <input id="file-input" type="file"  />
+                              </div>
+                              </div>
+                          </div>
+                            <div class="mb-3">
+                                <label for="title" class="form-label" style="text-align: right;">اسم المنتج</label>
+                                <input type="text" class="form-control" id="title">
+                            </div>
+                            <div class="mb-3">
+                                <label for="category" class="form-label" style="text-align: right;">القسم</label>
+                                <select class="form-control" id="category">
+                                    <option disabled selected value> -- اختر القسم -- </option>
+                                    <!-- Add more options as needed -->
+                                </select>
+                            </div>
+                             <div class="mb-3">
+                                <label for="subCategory" class="form-label" style="text-align: right;">القسم</label>
+                                <select class="form-control" id="subCategory">
+                                    <option disabled selected value> -- اختر القسم الفرعي -- </option>
+                                    <!-- Add more options as needed -->
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="description" class="form-label" style="text-align: right;">وصف المتجر</label>
+                                <textarea class="form-control" id="description" rows="4"></textarea>
+                            </div>
+                            <div class="mb-3">
+                              <label for="price" class="form-label" style="text-align: right;">سعر المنتج</label>
+                              <input type="text" class="form-control" id="price">
+                          </div>
+                        </div>
+                        <!-- إضافة المزيد من محتوى العلامات التبويبية هنا -->
+                    </div>
+                </div>
+                
+                  
+                
+                  <hr>
+
+                <p><a href="#">
+                     برمجة وتصميم علي سيكو
+                    </a>  </p>
+                </div>
+                
+              </section>
+
+
+        </div>
+      </main>
+      <!--Main layout-->
+</body>
+
+<script>
+$('#upload').on('click', function() {
+  var title = $('#title').val();
+  var description = $('#description').val();
+  var category = $('#category').val();
+  var subCategory = $('#subCategory').val();
+  var price = $('#price').val();
+  var model = $('#model').val();
+  var brand = $('#brandTitle').val();
+
+  if (!title || !description || !category || !price || !subCategory) {
+    alert('يرجى ملء جميع الحقول المطلوبة.');
+    return;
+  }
+
+  $('#loading').show();
+  
+  var item = new URLSearchParams(window.location.search).get("id");
+ $.ajax({
+  url: 'http://145.223.33.238:9099/aqs/api/v1/updateProduct',
+  type: 'POST',
+  contentType: 'application/json',
+  data: JSON.stringify({
+    id: item,
+    title: title,
+    description: description,
+    category: category,
+    subCategory: subCategory,
+    price: price,
+    model: model,
+    brand: brand
+  }),
+  success: function(response) {
+    $('#loading').hide();
+    console.log("Item ID:", item);
+    alert(response);
+  },
+  error: function(xhr, status, error) {
+    $('#loading').hide();
+    console.error('حدث خطأ:', error);
+    alert(error);
+  }
+});
+});
+
+
+    var images = [];
+
+// عند تغيير قيمة حقل الصور الثانوية
+$('#secondaryImages').on('change', function() {
+  // التحقق من عدم تجاوز العدد الأقصى للصور
+  if (images.length + this.files.length > 10) {
+    alert('لا يمكنك رفع أكثر من 10 صور.');
+    return;
+  }
+
+  // إضافة الصور الجديدة إلى المصفوفة
+  for (var i = 0; i < this.files.length; i++) {
+    images.push(this.files[i]);
+     
+  }
+  
+  UploadImages();
+  updateImagesPreview();
+});
+function updateImagesPreview() {
+  images.forEach(function(file, index) {
+    var img = document.createElement('img');
+    img.src = URL.createObjectURL(file);
+    img.classList.add('preview-image');
+    img.onload = function() {
+      URL.revokeObjectURL(img.src); // تحرير الذاكرة
+    };
+    
+    img.setAttribute('data-index', index);
+    $('#secondaryImagesPreview').append(img);
+   
+  });
+}
+
+
+
+
+
+</script>
+<script>
+
+    function UploadImages() {
+        
+        var item = new URLSearchParams(window.location.search).get("id");
+         var file_data = $('#secondaryImages').prop('files')[0];
+     
+        var form_data = new FormData();  // Create a FormData object
+        form_data.append('file', file_data);  // Append all element in FormData  object
+        form_data.append('id', item); 
+
+        $.ajax({
+                url         : 'http://145.223.33.238:9099/aqs/api/v1/uploadImagesProduct',     // point to server-side PHP script 
+                dataType    : 'text',           // what to expect back from the PHP script, if anything
+                cache       : false,
+                contentType : false,
+                processData : false,
+                data        : form_data,                         
+                type        : 'post',
+                success     : function(output){
+                    alert(output);              // display response from the PHP script, if any
+                    location.reload();
+                }
+         });
+}
+
+
+
+    function deleteImages(image) {
+    if (confirm("هل انت متاكد من حذف الصورة ؟")) {
+        var item = new URLSearchParams(window.location.search).get("id");
+        
+        var requestData = {
+            id: item,
+            image: image
+        };
+
+        $.ajax({
+            url: 'http://89.116.110.51:9099/aqs/api/v1/ImagesProductDelete',
+            type: 'DELETE',
+            contentType: 'application/json',
+            data: JSON.stringify(requestData),
+            success: function (response) {
+                alert(response);
+                // location.reload();
+            },
+            error: function (xhr, status, error) {
+                console.error('Error:', error);
+            }
+        });
+    }
+}
+
+
+</script>
+
+<script>
+    function updateImageBrand(){
+         var file_data = $('#file-inputBrand').prop('files')[0];
+      var item = new URLSearchParams(window.location.search).get("id");
+        var form_data = new FormData();  // Create a FormData object
+        form_data.append('file', file_data);  
+        form_data.append('id', item);  
+        $.ajax({
+                url         : 'http://145.223.33.238:9099/aqs/api/v1/UpdateImageBrand',     
+                dataType    : 'text',          
+                cache       : false,
+                contentType : false,
+                processData : false,
+                data        : form_data,                         
+                type        : 'post',
+                success     : function(output){
+                    alert(output);              // display response from the PHP script, if any
+                    //location.reload();
+                }
+         });
+         $('#pic').val(''); 
+    }
+ function updateImage(){
+         var file_data = $('#file-input').prop('files')[0];
+      var item = new URLSearchParams(window.location.search).get("id");
+        var form_data = new FormData();  // Create a FormData object
+        form_data.append('file', file_data);  
+        form_data.append('id', item);  
+        $.ajax({
+                url         : 'http://145.223.33.238:9099/aqs/api/v1/UpdateImageProduct',     
+                dataType    : 'text',          
+                cache       : false,
+                contentType : false,
+                processData : false,
+                data        : form_data,                         
+                type        : 'post',
+                success     : function(output){
+                    alert(output);              // display response from the PHP script, if any
+                    //location.reload();
+                }
+         });
+         $('#pic').val(''); 
+    }
+</script>
+<script>
+    $(function() {
+    $(document).on("change", "#file-input", function() {
+         var input = this;
+    var url = $(this).val();
+    var ext = url.substring(url.lastIndexOf('.') + 1).toLowerCase();
+    if (input.files && input.files[0]&& (ext == "gif" || ext == "png" || ext == "jpeg" || ext == "jpg")) 
+     {
+        var reader = new FileReader();
+
+        reader.onload = function (e) {
+           $('#image').attr('src', e.target.result);
+        }
+       reader.readAsDataURL(input.files[0]);
+       updateImage();
+    }
+    else
+    {
+      $('#img').attr('src', '/assets/no_preview.png');
+    }
+    
+        img = true;
+    });
+
+    $(document).on("change", "#file-inputBrand", function() {
+         var input = this;
+    var url = $(this).val();
+    var ext = url.substring(url.lastIndexOf('.') + 1).toLowerCase();
+    if (input.files && input.files[0]&& (ext == "gif" || ext == "png" || ext == "jpeg" || ext == "jpg")) 
+     {
+        var reader = new FileReader();
+
+        reader.onload = function (e) {
+           $('#imageBrand').attr('src', e.target.result);
+        }
+       reader.readAsDataURL(input.files[0]);
+       updateImageBrand();
+    }
+    else
+    {
+      $('#img').attr('src', '/assets/no_preview.png');
+    }
+    
+        img = true;
+    });
+});
+</script>
+
+</html>

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" href="./css/style.css" />
+    <!-- Bootstrap CSS -->
+    <script src="https://kit.fontawesome.com/bbfd9c6b3d.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.0/Chart.bundle.js"></script>
+    <link rel="stylesheet" href="http://cdn.datatables.net/1.10.13/css/jquery.dataTables.min.css">
+    <script src="https://cdn.datatables.net/1.10.13/js/jquery.dataTables.min.js"></script>
+    <title>لوحة التحكم</title>
+    <style>
+        #loading {
+            display: table;
+            margin: 0 auto;
+            position: fixed;
+            display: block;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            text-align: center;
+            opacity: 0.7;
+            background-color: #fff;
+            z-index: 99;
+        }
+    </style>
+</head>
+<body>
+    <div id="slider-container">
+        <!-- سيتم تحميل محتوى الـ slider هنا -->
+    </div>
+
+    <main style="margin-top: 10px;">
+        <div class="container pt-3 justify-content-center">
+            <section id="boxes" class="py-5">
+                <div class="container">
+                    <h1 class="details">المبيعات</h1>
+   <div class="text-right pb-3 pr-5">
+        <select class="form-control" style="width:190px; text-right" id="stat">
+        <option value="" selected disabled>اختر الحالة</option>
+          <option value="2">قيد التجهيز
+            </option>
+            <option value="3">
+            قيد التوصيل
+            </option>
+            <option value="4">
+            مستلمة
+            </option>
+            <option value="5">
+              راجعة
+              </option>
+        </select>
+        <br />
+        <button type="button" id="change" class="btn btn-primary text-right">
+تغيير حالة المحدد
+</button>
+        
+    </div>
+                    <!-- أزرار الفلترة -->
+                    <div class="text-right pb-3 pr-5">
+                        <button class="btn btn-secondary branch-filter" data-branch="">عرض الكل</button>
+                        <button class="btn btn-primary branch-filter" data-branch="الزعفرانية">الزعفرانية</button>
+                        <button class="btn btn-primary branch-filter" data-branch="الحرية">الحرية</button>
+                        <button class="btn btn-primary branch-filter" data-branch="الاعظمية">الاعظمية</button>
+                        <button class="btn btn-primary branch-filter" data-branch="الدورة">الدورة</button>
+                        <button class="btn btn-primary branch-filter" data-branch="الغزالية">الغزالية</button>
+                        <button class="btn btn-primary branch-filter" data-branch="الكريعات">الكريعات</button>
+                        <button class="btn btn-primary branch-filter" data-branch="النهروان">النهروان</button>
+                        <button class="btn btn-primary branch-filter" data-branch="الكرادة">الكرادة</button>
+                    </div>
+
+                    <br/>
+                    <table id="myTable" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">
+                        <thead>
+                            <tr>
+                                <th class="th-sm"><input type="checkbox" id="checkAll" /></th>
+                                <th class="th-sm">اسم المستخدم</th>
+                                <th class="th-sm">الهاتف</th>
+                                <th class="th-sm">رقم الفاتورة</th>
+                                <th class="th-sm">المحافظة</th>
+                                <th class="th-sm">المدينة</th>
+                                <th class="th-sm">اقرب نقطة دالة</th>
+                                <th class="th-sm">مبلغ الفاتورة</th>
+                                <th class="th-sm">اجور التوصيل</th>
+                                <th class="th-sm">الملاحظات</th>
+                                <th class="th-sm">الفرع</th>
+                                <th class="th-sm">الحالة</th>
+                                <th class="th-sm">التاريخ</th>
+                                <th class="th-sm">عرض</th>
+                            </tr>
+                        </thead>
+                        <tbody class="tBody"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        $(document).ready(function () {
+            setTimeout(function() {
+    location.reload(); // Reload the current page
+}, 50000); // 50,000 milliseconds = 50 seconds
+              $("#slider-container").load("slider.html");
+            // تحميل البيانات في الجدول
+            $('#loading').show();
+            let table = null;
+
+            $.ajax({
+                url: 'http://145.223.33.238:9099/aqs/api/v1/getAllBills',
+                type: 'GET',
+                dataType: 'json',
+                success: function (data) {
+                    $('#loading').hide();
+                    table = $('#myTable').DataTable({
+                        "data": data,
+                        "columns": [
+                            {
+                                "data": null,
+                                "render": function(data, type, row) {
+                                    return '<input type="checkbox" class="row-check" value="' + row.id + '">';
+                                }
+                            },
+                            { "data": "name" },
+                            { "data": "phone" },
+                            { "data": "id" },
+                            { "data": "city" },
+                            { "data": "address" },
+                            { "data": "nearPoint" },
+                            { "data": "price" },
+                            { "data": "delivery" },
+                            { "data": "note" },
+                            { "data": "near" },
+                            {
+                                "data": "status",
+                                "render": function (data, type, row) {
+                                    switch (data) {
+                                        case 0: return 'قيد المعالجة';
+                                        case 2: return 'قيد التجهيز';
+                                        case 3: return 'قيد التوصيل';
+                                        case 4: return 'مستلمة';
+                                        case 5: return 'راجعة';
+                                        default: return 'غير معروفة';
+                                    }
+                                }
+                            },
+                            { "data": "date" },
+                            {
+                                "data": "id",
+                                "render": function(data, type, row) {
+                                    return '<a href="show.html?item='+data+'"><i class="fas fa-eye" onclick="edititem(this)" id='+data+' aria-hidden="true"></i><a/>';
+                                }
+                            }
+                        ],
+                        "language": {
+                            "info": "",
+                            "search": "بحث : ",
+                            "lengthMenu": " عرض _MENU_ عنصر ",
+                            "paginate": {
+                                "first": "الاول",
+                                "last": "الاخير",
+                                "next": "التالي",
+                                "previous": "السابق"
+                            }
+                        }
+                    });
+
+                    // فلترة حسب الفرع
+                    $('.branch-filter').click(function () {
+                        const branch = $(this).data('branch');
+                        if (branch) {
+                            table.column(10).search(branch).draw();
+                        } else {
+                            table.column(10).search('').draw();
+                        }
+                    });
+                },
+                error: function (xhr, status, error) {
+                    $('#loading').hide();
+                    console.error('Error:', error);
+                }
+            });
+        });
+        
+            $(document).ready(function(){
+            $("#change").click(function() {
+  if (confirm('هل متأكد من تغيير الحالة ؟')) {
+    var ids = [];
+    $("input:checkbox:checked").each(function() {
+      if (Number.isInteger(+$(this).val())) {
+        ids.push(+$(this).val()); // تأكد من تحويل القيمة إلى رقم
+      }
+    });
+
+    if (ids.length === 0) {
+      alert("الرجاء تحديد عناصر");
+    } else {
+      var status = $('#stat').val();
+      if (status != "") {
+        $.ajax({
+          url: "http://145.223.33.238:9099/aqs/api/v1/changeStatus",
+          method: "POST",
+          contentType: "application/json", // تحديد نوع المحتوى كـ JSON
+          data: JSON.stringify({ id: ids, status: status }), // تحويل البيانات إلى JSON
+          success: function(data) {
+            alert(data);
+            location.reload();
+          },
+          error: function(xhr, status, error) {
+            console.error('Error:', error);
+          }
+        });
+      } else {
+        alert("اختر الحالة ..!");
+      }
+    }
+  }
+});
+
+});
+    </script>
+</body>
+</html>

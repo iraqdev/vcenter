@@ -1,0 +1,26 @@
+=== Google Play Console - Location Permissions ===
+
+1. App purpose (الغرض الرئيسي للتطبيق):
+VCenter is an e-commerce mobile application specialized in selling original mobile phone spare parts in Iraq. The app allows users to browse and purchase spare parts, place orders, track deliveries, and manage their accounts. The app serves customers across all Iraqi governorates with multiple branches in Baghdad (Al-Adhamiya, Al-Ghazaliya, Al-Zaafaraniya) to provide fast and reliable delivery services.
+
+VCenter هو تطبيق تجارة إلكترونية متخصص في بيع قطع غيار الهواتف النقالة الأصلية في العراق. يسمح التطبيق للمستخدمين بتصفح وشراء قطع الغيار، ووضع الطلبات، وتتبع عمليات التوصيل، وإدارة حساباتهم. يخدم التطبيق العملاء في جميع محافظات العراق مع فروع متعددة في بغداد (الاعظمية، الغزالية، الزعفرانية) لتوفير خدمات توصيل سريعة وموثوقة.
+
+---
+
+2. Location access (وصف ميزة واحدة تستخدم الموقع):
+The app uses location services to automatically determine the user's nearest branch location when they register or log in. This feature calculates the closest VCenter branch (Al-Adhamiya, Al-Ghazaliya, or Al-Zaafaraniya) based on the user's current GPS coordinates. The app requests location permission during registration to automatically assign the nearest branch, which is then used to calculate accurate delivery costs and estimated delivery times. This ensures users receive the fastest delivery service from the most convenient branch location. The location is accessed once during registration/login to determine the closest branch and is stored in the user's profile for future order processing.
+
+يستخدم التطبيق خدمات الموقع لتحديد أقرب فرع للمستخدم تلقائياً عند التسجيل أو تسجيل الدخول. تحسب هذه الميزة أقرب فرع لـ VCenter (الاعظمية، الغزالية، أو الزعفرانية) بناءً على إحداثيات GPS الحالية للمستخدم. يطلب التطبيق صلاحية الموقع أثناء التسجيل لتعيين أقرب فرع تلقائياً، والذي يُستخدم بعد ذلك لحساب تكاليف التوصيل الدقيقة وأوقات التوصيل المقدرة. يضمن ذلك حصول المستخدمين على أسرع خدمة توصيل من أقرب فرع مناسب. يتم الوصول إلى الموقع مرة واحدة أثناء التسجيل/تسجيل الدخول لتحديد أقرب فرع ويتم حفظه في ملف المستخدم لمعالجة الطلبات المستقبلية.
+
+---
+
+3. Video instructions (رابط فيديو - اختياري):
+[يمكنك إضافة رابط فيديو YouTube يوضح كيفية طلب التطبيق لصلاحية الموقع أثناء التسجيل وكيفية حساب أقرب فرع]
+
+---
+
+ملاحظات:
+- إذا لم يكن لديك فيديو بعد، يمكنك تخطي هذا الحقل أو إضافته لاحقاً
+- تأكد من أن التطبيق يعرض رسالة واضحة للمستخدم قبل طلب صلاحية الموقع
+- يجب أن توضح الرسالة أن الموقع يُستخدم لتحديد أقرب فرع وحساب تكاليف التوصيل
+

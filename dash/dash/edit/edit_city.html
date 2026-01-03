@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" href="../css/style.css" />
+    <!-- Bootstrap CSS -->
+    <script src="https://kit.fontawesome.com/bbfd9c6b3d.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.0/Chart.bundle.js"></script>
+    <link rel="stylesheet" href="http://cdn.datatables.net/1.10.13/css/jquery.dataTables.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+    <script src="https://cdn.datatables.net/1.10.13/js/jquery.dataTables.min.js"></script>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+    <script>
+    $(document).ready(function () {
+        $("#slider-container").load("./sliderEdit.html");
+         var item = new URLSearchParams(window.location.search).get("id");
+     $.ajax({
+                url: 'http://89.116.110.51:9099/cbc/api/v1/Dash/getCity/'+item,
+                type: 'GET',
+                dataType: 'json',
+                success: function (data) {
+                    if(data.length > 0) {
+                        var city = data[0]; 
+                        $('#title').val(city.title);
+                        $('#image').attr('src', city.image);
+                    } else {
+                        // Handle case when no category data is returned
+                        console.error('No category data found.');
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error('Error:', error);
+                }
+            });
+  $('#save').on('click', function() {
+        var title = document.getElementById("title").value;
+         var item = new URLSearchParams(window.location.search).get("id");
+          $.ajax({
+          url: 'http://89.116.110.51:9099/cbc/api/v1/Dash/UpdateCity',
+          type: 'POST',
+          contentType: 'application/json',
+          data: JSON.stringify({
+            id: item,
+            title: title,
+          }),
+          success: function(response) {
+            $('#loading').hide();
+            console.log("Item ID:", item);
+            alert(response);
+             location.reload();
+          },
+          error: function(xhr, status, error) {
+            $('#loading').hide();
+            console.error('حدث خطأ:', error);
+            alert(error);
+          }
+        });
+
+    });
+    });
+    </script>
+    <title>لوحة التحكم</title>
+    <style>
+         .image-upload>input {
+  display: none;
+}
+    </style>
+</head>
+
+<body>
+    <div id="slider-container">
+      <!-- سيتم تحميل محتوى الـ slider هنا -->
+    </div>
+    <main style="margin-top: 10px;">
+        <div class="container pt-3 justify-content-center">
+            <section id="boxes" class="py-5">
+                <div class="container">
+                    <h1 class="details">تعديل محافظة</h1>
+                    <br/>
+                    <div class="h-100 d-flex align-items-center justify-content-center">
+                        <div class="image-upload">
+                    <label for="file-input">
+                        <img id="image" class="img_edit"/>
+                        <span class="input-group-text" id="inputGroup-sizing-default">صورة المحافظة</span>
+                    </label>
+                    <input id="file-input" type="file"  />
+                    </div>
+                    </div>
+                    <div class="input-group mb-3">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text" id="inputGroup-sizing-default">اسم المحافظة</span>
+                        </div>
+                        <input type="text" class="form-control" id="title" aria-label="اسم المحافظة" aria-describedby="inputGroup-sizing-default">
+                    </div>
+                    <div class="col text-center">
+                         <a href="../cities.html"><button type="button" id="cancel" class="btn btn-danger">الغاء</button></a>
+                        <button type="button" id="save" class="btn btn-success">حفظ التعديلات</button>
+                    </div>
+                    <hr>
+                    <p><a href="#">
+                        برمجة وتصميم علي سيكو
+                    </a></p>
+                </div>
+            </section>
+        </div>
+    </main>
+</body>
+<script>
+    function updateImage(){
+         var file_data = $('#file-input').prop('files')[0];
+      var item = new URLSearchParams(window.location.search).get("id");
+        var form_data = new FormData();  // Create a FormData object
+        form_data.append('file', file_data);  
+        form_data.append('id', item);  
+        $.ajax({
+                url         : 'http://89.116.110.51:9099/cbc/api/v1/Dash/UpdateImageCity',     // point to server-side PHP script 
+                dataType    : 'text',           // what to expect back from the PHP script, if anything
+                cache       : false,
+                contentType : false,
+                processData : false,
+                data        : form_data,                         
+                type        : 'post',
+                success     : function(output){
+                    alert(output);              // display response from the PHP script, if any
+                    //location.reload();
+                }
+         });
+         $('#pic').val(''); 
+    }
+</script>
+<script>
+    $(function() {
+    $(document).on("change", "#file-input", function() {
+         var input = this;
+    var url = $(this).val();
+    var ext = url.substring(url.lastIndexOf('.') + 1).toLowerCase();
+    if (input.files && input.files[0]&& (ext == "gif" || ext == "png" || ext == "jpeg" || ext == "jpg")) 
+     {
+        var reader = new FileReader();
+
+        reader.onload = function (e) {
+           $('#image').attr('src', e.target.result);
+        }
+       reader.readAsDataURL(input.files[0]);
+       updateImage();
+    }
+    else
+    {
+      $('#img').attr('src', '/assets/no_preview.png');
+    }
+    
+        img = true;
+    });
+});
+</script>
+</html>

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" href="./css/style.css" />
+    <!-- Bootstrap CSS -->
+    <script src="https://kit.fontawesome.com/bbfd9c6b3d.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.0/Chart.bundle.js"></script>
+    <link rel="stylesheet" href="http://cdn.datatables.net/1.10.13/css/jquery.dataTables.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+    <script src="https://cdn.datatables.net/1.10.13/js/jquery.dataTables.min.js"></script>
+    <script>
+     $(document).ready(function () {
+        $("#slider-container").load("slider.html");
+        $('#loading').show();
+        $.ajax({
+            
+        url: 'http://145.223.33.238:9099/cbc/api/v1/getAllCities', // استبدل بالـ URL الصحيح لـ API الفئات
+        type: 'GET',
+        dataType: 'json',
+        success: function (data) {
+          // تعبئة عنصر select بالفئات المسترجعة
+          var options = '<option disabled selected value> -- اختر المحافظة -- </option>';
+          data.forEach(function(category) {
+            options += '<option value="' + category.id + '">' + category.title + '</option>';
+          });
+          $('#city').html(options);
+          $('#loading').hide();
+        },
+        error: function (xhr, status, error) {
+          console.error('Error:', error);
+          $('#loading').hide();
+        }
+      });
+      
+        $.ajax({
+          url: 'http://145.223.33.238:9099/cbc/api/v1/Dash/getSliderCategory',
+          type: 'GET',
+          dataType: 'json',
+          success: function (data) {
+            $('#loading').hide();
+            $('#myTable').DataTable({
+              "data": data,
+              "columns": [
+            	{
+    "data": "image",
+    "render": function(data, type, row) {
+        return '<img src="'+data+'" class="prod_img"/>';
+    }
+},
+         	{ "data": "city_title"},
+			{ "data": "category_title"},
+		
+		{
+    "data": "id",
+    "render": function(data, type, row) {
+        return '<a href="#"><i class="fas fa-trash" onclick="deleteitem(this);" id='+data+' aria-hidden="true" style="color: rgb(183, 39, 39);"></i><a/>';
+    }
+},
+		
+        ],
+              "language": {
+                "info": "",
+                "search": "بحث : ",
+                "lengthMenu": " عرض _MENU_ عنصر ",
+                "paginate": {
+                  "first": "الاول",
+                  "last": "الاخير",
+                  "next": "التالي",
+                  "previous": "السابق"
+                },
+              }
+            });
+          },
+          error: function (xhr, status, error) {
+            $('#loading').hide();
+            console.error('Error:', error);
+          }
+        });
+      });
+
+    </script>
+    <title>لوحة التحكم</title>
+  
+</head>
+
+
+<body>
+    <!--Main Navigation-->
+ 
+    <div id="slider-container">
+      <!-- سيتم تحميل محتوى الـ slider هنا -->
+    </div>
+      <!--Main Navigation-->
+
+      <!--Main layout-->
+      <main style="margin-top: 10px;">
+        <div class="container pt-3  justify-content-center" >
+            <section id="boxes" class="py-5">
+                <div class="container">
+                      <h1 class="details">عروض الاقسام</h1>
+                   <br/>
+                   <div class="text-right pb-3 pr-5">
+                    <button type="button" class="btn btn-primary float-rigth pull-right" data-toggle="modal" data-target="#exampleModal">
+                     اضافة عرض
+                   </button>
+                   </div>
+                   <table id="myTable" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">
+                    <thead>
+                      <tr>
+                        <th class="th-sm">الصورة</th>
+                        <th class="th-sm">المحافظة</th>
+                         <th class="th-sm">القسم</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                     
+                      
+                     
+                    </tbody>
+                   
+                  </table>
+                  
+                
+                  <hr>
+
+                <p><a href="#">
+                     برمجة وتصميم علي سيكو
+                    </a>  </p>
+                </div>
+                
+              </section>
+
+
+        </div>
+      </main>
+      <!--Main layout-->
+</body>
+  <div class="modal fade text-right" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+        <h5 class="modal-title" id="exampleModalLabel">اضافة عرض جديد</h5>
+        
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+           <label for="city" class="form-label">المحافظة</label>
+         <select class="form-control" id="city" onchange="getCategories(this.value)">
+         <option disabled selected value> -- اختر المحافظة -- </option>
+                                    <!-- Add more options as needed -->
+          </select>
+        </div>
+          <div class="mb-3">
+        <label for="category" class="form-label" style="text-align: right;">القسم</label>
+       <select class="form-control" id="category">
+        <option disabled selected value> -- اختر القسم -- </option>
+       <!-- Add more options as needed -->
+         </select>
+        </div>
+        <div class="mb-3">
+          <label for="formFile" class="form-label">ارفق صورة العرض</label>
+          <input class="form-control" type="file" id="pic">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary " data-dismiss="modal">الغاء</button>
+        &nbsp;
+        <button type="button" id="upload" class="btn btn-success">حفظ</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+ function getCategories(id){
+        $.ajax({
+    url: 'http://145.223.33.238:9099/cbc/api/v1/GetCategory/' + id, // استبدل بالـ URL الصحيح لـ API الفئات
+    type: 'GET',
+    dataType: 'json',
+    success: function (data) {
+      // تعبئة عنصر select بالفئات المسترجعة
+      var options = '<option disabled selected value> -- اختر القسم -- </option>';
+      data.forEach(function(category) {
+        options += '<option value="' + category.id + '">' + category.title + '</option>';
+      });
+      $('#category').html(options);
+    },
+    error: function (xhr, status, error) {
+      console.error('Error:', error);
+    }
+  });
+    }
+           function deleteitem(elmt) {
+           
+            if (confirm('هل انت متآكد من الحذف')) {
+   var id = (elmt.id);
+   //deleteSliderHome
+   $.ajax({
+            url: 'http://145.223.33.238:9099/cbc/api/v1/Dash/deleteSliderCategory/' + id,
+            type: 'DELETE',
+            success: function (response) {
+                    alert(response);              
+                    location.reload();
+            },
+            error: function (xhr, status, error) {
+                console.error('Error:', error);
+            }
+        });
+   
+} else {
+  // Do nothing!
+
+}
+            }
+             $('#upload').on('click', function() {
+                 var category = $('#category').val();
+        var file_data = $('#pic').prop('files')[0];
+        
+        var form_data = new FormData();  // Create a FormData object
+        form_data.append('file', file_data); 
+        form_data.append('id', category); 
+        $.ajax({
+                url         : 'http://145.223.33.238:9099/cbc/api/v1/Dash/addSliderCategory',     // point to server-side PHP script 
+                dataType    : 'text',          
+                cache       : false,
+                contentType : false,
+                processData : false,
+                data        : form_data,                         
+                type        : 'post',
+                success     : function(output){
+                    alert(output);              // display response from the PHP script, if any
+                }
+         });
+         $('#pic').val('');                     /* Clear the input type file */
+    });
+      </script>
+
+</html>

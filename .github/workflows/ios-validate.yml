@@ -1,0 +1,54 @@
+name: iOS Build Validation
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  FLUTTER_VERSION: '3.24.5'
+  XCODE_VERSION: '15.4'
+
+jobs:
+  validate:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        channel: 'stable'
+        
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: ${{ env.XCODE_VERSION }}
+        
+    - name: Install dependencies
+      run: |
+        flutter pub get
+        cd ios && pod install && cd ..
+        
+    - name: Analyze code
+      run: flutter analyze
+      
+    - name: Run tests
+      run: flutter test
+      
+    - name: Build iOS app (no codesign)
+      run: flutter build ios --release --no-codesign
+      
+    - name: Check iOS bundle
+      run: |
+        if [ -d "build/ios/iphoneos/Runner.app" ]; then
+          echo "✅ iOS build successful"
+          ls -la build/ios/iphoneos/Runner.app/
+        else
+          echo "❌ iOS build failed"
+          exit 1
+        fi
