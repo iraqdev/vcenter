@@ -53,13 +53,20 @@ workflows:
       - name: Install CocoaPods dependencies
         script: |
           cd ios
+          # تنظيف شامل لجميع ملفات CocoaPods
           rm -rf Pods
           rm -rf Podfile.lock
           rm -rf .symlinks
           rm -rf Flutter/Flutter.framework
           rm -rf Flutter/Flutter.podspec
+          rm -rf ~/Library/Caches/CocoaPods
+          # التحقق من Podfile
+          echo "📋 Podfile content:"
+          cat Podfile | grep -A 2 "platform :ios"
+          # تحديث مستودعات CocoaPods
           pod repo update
-          pod install --repo-update
+          # تثبيت dependencies
+          pod install --repo-update --verbose
       
       - name: Set up code signing settings on Xcode project
         script: |
