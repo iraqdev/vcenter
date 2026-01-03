@@ -39,10 +39,25 @@ workflows:
         script: |
           flutter pub get
       
+      - name: Verify iOS deployment target
+        script: |
+          echo "🔍 Checking iOS deployment target settings..."
+          cd ios
+          echo "Podfile platform:"
+          grep "platform :ios" Podfile || echo "⚠️ Platform not found in Podfile"
+          echo "AppFrameworkInfo.plist MinimumOSVersion:"
+          grep -A 1 "MinimumOSVersion" Flutter/AppFrameworkInfo.plist || echo "⚠️ MinimumOSVersion not found"
+          echo "Xcode project IPHONEOS_DEPLOYMENT_TARGET:"
+          grep "IPHONEOS_DEPLOYMENT_TARGET" Runner.xcodeproj/project.pbxproj | head -1 || echo "⚠️ IPHONEOS_DEPLOYMENT_TARGET not found"
+      
       - name: Install CocoaPods dependencies
         script: |
           cd ios
-          rm -f Podfile.lock
+          rm -rf Pods
+          rm -rf Podfile.lock
+          rm -rf .symlinks
+          rm -rf Flutter/Flutter.framework
+          rm -rf Flutter/Flutter.podspec
           pod repo update
           pod install --repo-update
       
