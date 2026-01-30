@@ -3,9 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:ecommerce/controllers/ProfileController.dart';
+import 'package:ecommerce/Bindings/Landing_bindings.dart';
 import 'package:ecommerce/main.dart';
 
 import 'EditProfileView.dart';
+import 'Login.dart';
 
 class Profile extends StatelessWidget {
   Profile({super.key});
@@ -152,7 +154,9 @@ class Profile extends StatelessWidget {
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    onTap: () => Get.offNamed('/'),
+                    onTap: () {
+                      Get.off(() => Login(), binding: Landing_bindings());
+                    },
                     borderRadius: BorderRadius.circular(15),
                     child: Center(
                       child: Row(
