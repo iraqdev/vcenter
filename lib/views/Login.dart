@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -293,34 +294,38 @@ class Login extends StatelessWidget {
   Widget _buttonLogin() {
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 24),
-      child: GestureDetector(
-        onTap: () {
-          controller.Login();
-        },
-        child: Container(
-          height: Get.height * 0.055,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.deepPurple, Colors.deepPurple.withOpacity(0.8)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(15),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.deepPurple.withOpacity(0.3),
-                blurRadius: 15,
-                offset: Offset(0, 8),
+      height: math.max(48.0, Get.height * 0.055),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            controller.Login();
+          },
+          borderRadius: BorderRadius.circular(15),
+          child: Ink(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.deepPurple, Colors.deepPurple.withOpacity(0.8)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-            ],
-          ),
-          child: Center(
-            child: Text(
-              "تسجيل الدخول",
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
+              borderRadius: BorderRadius.circular(15),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.deepPurple.withOpacity(0.3),
+                  blurRadius: 15,
+                  offset: Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Text(
+                "تسجيل الدخول",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
               ),
             ),
           ),

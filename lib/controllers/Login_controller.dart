@@ -105,71 +105,78 @@ class Login_controller extends GetxController {
     }
 
     if (phone_.text.isNotEmpty && password_.text.isNotEmpty) {
-      is_loading();
-      var response = await RemoteServices.login(
-        phone_.text.trim(),
-        password_.text.trim(),
-      );
-      if (response != null) {
-        var json_response = jsonDecode(response);
-        if (json_response['message'] == "Login Successfully") {
-          print(json_response);
-          await sharedPreferences!.setString('phone', json_response['phone']);
-          await sharedPreferences!.setInt('user_id', json_response['user_id']);
-          await sharedPreferences!.setString('near', json_response['near']);
-          await sharedPreferences!.setInt('active', json_response['active']);
-          await sharedPreferences!.setString('name', json_response['username']);
-          if (isremember) {
-            await sharedPreferences!.setBool('remember', true);
+      try {
+        is_loading();
+        var response = await RemoteServices.login(
+          phone_.text.trim(),
+          password_.text.trim(),
+        );
+        if (response != null) {
+          var json_response = jsonDecode(response);
+          if (json_response['message'] == "Login Successfully") {
+            print(json_response);
+            await sharedPreferences!.setString('phone', json_response['phone']);
+            await sharedPreferences!.setInt('user_id', json_response['user_id']);
+            await sharedPreferences!.setString('near', json_response['near']);
+            await sharedPreferences!.setInt('active', json_response['active']);
+            await sharedPreferences!.setString('name', json_response['username']);
+            if (isremember) {
+              await sharedPreferences!.setBool('remember', true);
+            }
+            
+            // حفظ OneSignal Player ID في Firebase
+            // تأخير لحفظ Player ID (لضمان تهيئة OneSignal)
+            Future.delayed(Duration(seconds: 2), () {
+              _savePlayerIdToFirebase(json_response['phone']);
+            });
+            
+            isnot_loading();
+            Get.off(() => Landing(), binding: Landing_bindings());
+          } else if (json_response['message'] == "No user found") {
+            errormsg =
+                "رقم الهاتف أو كلمة المرور غير صحيحة. يرجى التحقق من بياناتك والمحاولة مرة أخرى.";
+            is_error();
+            print(json_response['message']);
+            isnot_loading();
+          } else if (json_response['message'] == "Invalid credentials") {
+            errormsg =
+                "بيانات الدخول غير صحيحة. تأكد من رقم الهاتف وكلمة المرور.";
+            is_error();
+            print(json_response['message']);
+            isnot_loading();
+          } else if (json_response['message'] == "User not found") {
+            errormsg = "لم يتم العثور على المستخدم. تأكد من أن الحساب موجود.";
+            is_error();
+            print(json_response['message']);
+            isnot_loading();
+          } else if (json_response['message'] == "Account is disabled") {
+            errormsg = "الحساب معطل. يرجى التواصل مع الدعم الفني.";
+            is_error();
+            print(json_response['message']);
+            isnot_loading();
+          } else if (json_response['message'] == "Invalid phone number") {
+            errormsg =
+                "رقم الهاتف غير صحيح. تأكد من إدخال رقم هاتف عراقي صحيح (11 رقم يبدأ بـ 07).";
+            is_error();
+            print(json_response['message']);
+            isnot_loading();
+          } else {
+            errormsg = "حدث خطأ أثناء تسجيل الدخول. يرجى المحاولة مرة أخرى.";
+            is_error();
+            print(json_response['message']);
+            isnot_loading();
           }
-          
-          // حفظ OneSignal Player ID في Firebase
-          // تأخير لحفظ Player ID (لضمان تهيئة OneSignal)
-          Future.delayed(Duration(seconds: 2), () {
-            _savePlayerIdToFirebase(json_response['phone']);
-          });
-          
-          isnot_loading();
-          Get.off(() => Landing(), binding: Landing_bindings());
-        } else if (json_response['message'] == "No user found") {
-          errormsg =
-              "رقم الهاتف أو كلمة المرور غير صحيحة. يرجى التحقق من بياناتك والمحاولة مرة أخرى.";
-          is_error();
-          print(json_response['message']);
-          isnot_loading();
-        } else if (json_response['message'] == "Invalid credentials") {
-          errormsg =
-              "بيانات الدخول غير صحيحة. تأكد من رقم الهاتف وكلمة المرور.";
-          is_error();
-          print(json_response['message']);
-          isnot_loading();
-        } else if (json_response['message'] == "User not found") {
-          errormsg = "لم يتم العثور على المستخدم. تأكد من أن الحساب موجود.";
-          is_error();
-          print(json_response['message']);
-          isnot_loading();
-        } else if (json_response['message'] == "Account is disabled") {
-          errormsg = "الحساب معطل. يرجى التواصل مع الدعم الفني.";
-          is_error();
-          print(json_response['message']);
-          isnot_loading();
-        } else if (json_response['message'] == "Invalid phone number") {
-          errormsg =
-              "رقم الهاتف غير صحيح. تأكد من إدخال رقم هاتف عراقي صحيح (11 رقم يبدأ بـ 07).";
-          is_error();
-          print(json_response['message']);
-          isnot_loading();
         } else {
-          errormsg = "حدث خطأ أثناء تسجيل الدخول. يرجى المحاولة مرة أخرى.";
+          errormsg =
+              "فشل الاتصال بالخادم. تحقق من اتصال الإنترنت وحاول مرة أخرى.";
           is_error();
-          print(json_response['message']);
           isnot_loading();
         }
-      } else {
-        errormsg =
-            "فشل الاتصال بالخادم. تحقق من اتصال الإنترنت وحاول مرة أخرى.";
-        is_error();
+      } catch (e) {
         isnot_loading();
+        errormsg = "حدث خطأ. تحقق من الاتصال وحاول مرة أخرى.";
+        is_error();
+        print('Login error: $e');
       }
     } else {
       errormsg = "يرجى ملء جميع الحقول المطلوبة (رقم الهاتف وكلمة المرور).";

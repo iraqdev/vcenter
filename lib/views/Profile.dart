@@ -800,6 +800,14 @@ class Profile extends StatelessWidget {
                             color: Colors.green,
                           ),
                           
+                          SizedBox(height: 16),
+                          _buildSectionCard(
+                            title: 'تنبيه هام بخصوص أجهزة Apple',
+                            content: 'نحن لا نستخدم قطع غيار أصلية من Apple. استخدام خدماتنا في إصلاح أو صيانة أجهزة Apple قد يلغي ضمان الشركة المصنعة (Apple) على جهازك.',
+                            icon: Icons.info_outline_rounded,
+                            color: Colors.amber,
+                          ),
+                          
                           SizedBox(height: 20),
                           
                           // رسالة الشكر
