@@ -5,6 +5,7 @@ import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:ecommerce/controllers/ProfileController.dart';
 import 'package:ecommerce/Bindings/Landing_bindings.dart';
 import 'package:ecommerce/main.dart';
+import 'package:ecommerce/utils/apple_disclaimer.dart';
 
 import 'EditProfileView.dart';
 import 'Login.dart';
@@ -750,6 +751,45 @@ class Profile extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // تنبيه Apple (مطلوب من App Store 1.1.6): لا نستخدم قطع Apple، الاستخدام يلغي الضمان
+                          Container(
+                            width: double.infinity,
+                            padding: EdgeInsets.all(16),
+                            margin: EdgeInsets.only(bottom: 20),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.amber.shade700, width: 1.5),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(Icons.info_outline_rounded, color: Colors.amber.shade800, size: 22),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      AppleDisclaimer.title,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        color: Colors.amber.shade900,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: 10),
+                                Text(
+                                  AppleDisclaimer.body,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    height: 1.5,
+                                    color: Colors.grey[800],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                           // معلومات الفريق
                           _buildInfoCardWithColor(
                             icon: Icons.group_rounded,
@@ -779,7 +819,7 @@ class Profile extends StatelessWidget {
                           // المحتوى الرئيسي
                           _buildSectionCard(
                             title: 'من نحن',
-                            content: 'نحن VCENTER التطبيق الأفضل في العراق الذي يحتوي آلاف قطع الغيار الأصلية لجميع أنواع الهواتف النقالة في منصة واحدة',
+                            content: 'نحن VCENTER التطبيق الأفضل في العراق الذي يحتوي آلاف قطع الغيار عالية الجودة لجميع أنواع الهواتف النقالة في مكان واحد',
                             icon: Icons.business_rounded,
                             color: Colors.blue,
                           ),
@@ -787,7 +827,7 @@ class Profile extends StatelessWidget {
                           SizedBox(height: 16),
                           _buildSectionCard(
                             title: 'ماذا نفعل',
-                            content: 'نوفر للمهندسين الفنيين أصحاب مراكز الصيانة الهواتف إمكانية البحث والطلب بسهولة عبر التطبيق، مع توصيل سريع وخدمة موثوقة توفر عليهم عناء الذهاب إلى الأسواق التقليدية',
+                            content: 'نوفر قطع غيار للهواتف (غير تابعة لـ Apple) لأصحاب مراكز الصيانة مع إمكانية البحث والطلب بسهولة عبر التطبيق وتوصيل سريع. نحن لا نقدم إصلاحاً معتمداً من Apple.',
                             icon: Icons.work_rounded,
                             color: Colors.orange,
                           ),
@@ -798,14 +838,6 @@ class Profile extends StatelessWidget {
                             content: 'نوفر قاعدة بيانات ضخمة تشمل جميع الموديلات وشركات الهواتف في مكان واحد مع ضمان جودة المنتجات وخيارات متعددة تناسب الجميع',
                             icon: Icons.support_agent_rounded,
                             color: Colors.green,
-                          ),
-                          
-                          SizedBox(height: 16),
-                          _buildSectionCard(
-                            title: 'تنبيه هام بخصوص أجهزة Apple',
-                            content: 'نحن لا نستخدم قطع غيار أصلية من Apple. استخدام خدماتنا في إصلاح أو صيانة أجهزة Apple قد يلغي ضمان الشركة المصنعة (Apple) على جهازك.',
-                            icon: Icons.info_outline_rounded,
-                            color: Colors.amber,
                           ),
                           
                           SizedBox(height: 20),

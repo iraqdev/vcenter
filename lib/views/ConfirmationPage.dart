@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:ecommerce/controllers/Checkout_controller.dart';
+import 'package:ecommerce/utils/apple_disclaimer.dart';
 
 class ConfirmationPage extends StatelessWidget {
   ConfirmationPage({super.key});
@@ -93,6 +94,42 @@ class ConfirmationPage extends StatelessWidget {
                       fontWeight: FontWeight.w400,
                       color: Colors.grey[600],
                       height: 1.4,
+                    ),
+                  ),
+
+                  SizedBox(height: Get.height * 0.02),
+                  // تنبيه Apple (مطلوب من App Store 1.1.6)
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(14),
+                    margin: EdgeInsets.symmetric(horizontal: Get.width * 0.02),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.amber.shade300),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          AppleDisclaimer.title,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: Get.width * 0.032,
+                            color: Colors.amber.shade900,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(height: 6),
+                        Text(
+                          AppleDisclaimer.bodyShort,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: Get.width * 0.028,
+                            color: Colors.grey[700],
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
 

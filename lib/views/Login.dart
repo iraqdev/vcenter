@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:ecommerce/controllers/Login_controller.dart';
+import 'package:ecommerce/utils/apple_disclaimer.dart';
 
 import '../Bindings/Landing_bindings.dart';
 import 'Landing.dart';
@@ -50,6 +51,7 @@ class Login extends StatelessWidget {
                 ),
                 _space(Get.height * 0.035),
                 _buildLoginForm(),
+                _buildAppleDisclaimer(),
                 _space(Get.height * 0.02),
                 GetBuilder<Login_controller>(
                   builder: (builder) {
@@ -84,6 +86,49 @@ class Login extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildAppleDisclaimer() {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.amber.shade700, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.info_outline_rounded, color: Colors.amber.shade800, size: 22),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  AppleDisclaimer.title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: Colors.amber.shade900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 10),
+          Text(
+            AppleDisclaimer.body,
+            textAlign: TextAlign.start,
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.5,
+              color: Colors.grey[800],
+            ),
+          ),
+        ],
       ),
     );
   }

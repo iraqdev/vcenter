@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
@@ -88,24 +87,11 @@ class Categories extends StatelessWidget {
            children: <Widget>[
              spaceH(Get.height * 0.02),
              Center(
-               child:  CachedNetworkImage(
+               child: Image.asset(
+                 'assets/images/all.jpg',
                  height: Get.height * 0.12,
                  width: Get.height * 0.18,
-                 imageUrl: url,
-                 imageBuilder: (context, imageProvider) => Container(
-                   decoration: BoxDecoration(
-                     image: DecorationImage(
-                       image: imageProvider,
-                       fit: BoxFit.scaleDown,
-                     ),
-                   ),
-                 ),
-                 placeholder: (context, url) => Center(
-                   child: LoadingAnimationWidget.staggeredDotsWave(
-                     color: Colors.black,
-                     size: 30,
-                   ),),
-                 errorWidget: (context, url, error) => const Icon(Icons.error),
+                 fit: BoxFit.contain,
                ),
              ),
              spaceH(Get.height * 0.01),
