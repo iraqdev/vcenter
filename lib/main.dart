@@ -37,6 +37,7 @@ import 'package:ecommerce/views/Login.dart';
 import 'package:ecommerce/views/ProductPage.dart';
 import 'package:ecommerce/views/Products.dart';
 import 'package:ecommerce/views/RegisterView.dart';
+import 'package:ecommerce/views/ApplePartsScreen.dart';
 import 'package:intl/intl.dart';
 import 'package:video_player/video_player.dart';
 import 'package:hive/hive.dart';
@@ -366,6 +367,10 @@ class MyApp extends StatelessWidget {
         GetPage(
             name: '/categories',
             page: () => Categories(),
+            binding: Category_bindings()),
+        GetPage(
+            name: '/apple-parts',
+            page: () => const ApplePartsScreen(),
             binding: Category_bindings()),
         GetPage(
             name: '/products',

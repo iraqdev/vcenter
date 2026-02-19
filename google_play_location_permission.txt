@@ -1,5 +1,9 @@
 === Google Play Console - Location Permissions ===
 
+ملاحظة: التطبيق يستخدم الموقع أثناء الاستخدام فقط (Foreground). لا نطلب ولا نستخدم ACCESS_BACKGROUND_LOCATION.
+
+---
+
 1. App purpose (الغرض الرئيسي للتطبيق):
 VCenter is an e-commerce mobile application specialized in selling original mobile phone spare parts in Iraq. The app allows users to browse and purchase spare parts, place orders, track deliveries, and manage their accounts. The app serves customers across all Iraqi governorates with multiple branches in Baghdad (Al-Adhamiya, Al-Ghazaliya, Al-Zaafaraniya) to provide fast and reliable delivery services.
 

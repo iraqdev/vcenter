@@ -1,8 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- صلاحيات الموقع الجغرافي -->
+    <!-- صلاحيات الموقع (أثناء استخدام التطبيق فقط - لا خلفية) -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     
     <!-- صلاحيات الإنترنت -->
     <uses-permission android:name="android.permission.INTERNET" />
