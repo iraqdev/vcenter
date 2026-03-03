@@ -38,7 +38,7 @@ class Favorites extends StatelessWidget {
         forceMaterialTransparency: true,
         scrolledUnderElevation:0.0,
         surfaceTintColor: Colors.transparent,
-        leadingWidth: Get.height * 0.3,
+        leadingWidth: 220,
         leading: logo(),
       ),
       body: SafeArea(
@@ -178,22 +178,56 @@ class Favorites extends StatelessWidget {
       width: size,
     );
   }
-  Padding logo() {
-    return Padding(padding: EdgeInsetsDirectional.only(start: Get.height * 0.02, top: Get.height * 0.01),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: (){
-              Get.back();
-            },
-            child: Icon(Icons.arrow_back_ios),
-          ),
-          Image.asset('assets/images/logo.png' , fit: BoxFit.fill,width: Get.height * 0.06,height: Get.height * 0.03,),
-          Text('60'.tr , style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: Get.height * 0.018
-          ),)
-        ],
+  Widget logo() {
+    return Center(
+      child: Padding(
+        padding: EdgeInsetsDirectional.only(start: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              onPressed: () => Get.back(),
+              icon: Icon(Icons.arrow_back_ios, size: 20),
+              style: IconButton.styleFrom(
+                minimumSize: Size(40, 40),
+                padding: EdgeInsets.zero,
+              ),
+            ),
+            SizedBox(width: 4),
+            Container(
+              width: 36,
+              height: 36,
+              padding: EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: ClipOval(
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  fit: BoxFit.cover,
+                  width: 28,
+                  height: 28,
+                ),
+              ),
+            ),
+            SizedBox(width: 8),
+            Text(
+              '60'.tr,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

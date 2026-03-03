@@ -333,6 +333,7 @@ class ProductsManagementScreen extends StatelessWidget {
           ),
         ],
       ),
+      barrierDismissible: true,
     );
   }
 
@@ -390,6 +391,7 @@ class ProductsManagementScreen extends StatelessWidget {
           ),
         ],
       ),
+      barrierDismissible: true,
     );
   }
 
@@ -400,6 +402,7 @@ class ProductsManagementScreen extends StatelessWidget {
         product: null,
         onSave: (product) => productController.addProduct(product),
       ),
+      barrierDismissible: true,
     );
   }
 
@@ -410,8 +413,10 @@ class ProductsManagementScreen extends StatelessWidget {
         product: product,
         onSave: (updatedProduct) => productController.updateProduct(updatedProduct),
       ),
+      barrierDismissible: true,
     );
   }
+
 
   // تبديل حالة المنتج
   void _toggleProductStatus(ProductModel product) {
@@ -438,6 +443,7 @@ class ProductsManagementScreen extends StatelessWidget {
           ),
         ],
       ),
+      barrierDismissible: true,
     );
   }
 
@@ -598,6 +604,7 @@ class ProductsManagementScreen extends StatelessWidget {
           ),
         ],
       ),
+      barrierDismissible: true,
     );
   }
 }

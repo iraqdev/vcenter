@@ -112,24 +112,30 @@ class _SearchViewState extends State<SearchView> {
       ),
       title: Row(
         children: [
-          Container(
-            padding: EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: Offset(0, 2),
+          SizedBox(
+            width: 36,
+            height: 36,
+            child: Container(
+              padding: EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: ClipOval(
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  fit: BoxFit.cover,
+                  width: 28,
+                  height: 28,
                 ),
-              ],
-            ),
-            child: Image.asset(
-              'assets/images/logo.png',
-              fit: BoxFit.contain,
-              width: 24,
-              height: 24,
+              ),
             ),
           ),
           SizedBox(width: 12),

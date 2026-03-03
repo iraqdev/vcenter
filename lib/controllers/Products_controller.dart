@@ -2,6 +2,7 @@ import 'package:ecommerce/models/SubCategory.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import '../Services/FirebaseService.dart';
+import '../Services/RemoteServices.dart';
 import '../models/Product.dart';
 import '../utils/image_utils.dart';
 
@@ -131,8 +132,10 @@ class Products_Controller extends GetxController {
       // Filter by both subcategory and search text
       print('Filtering products with query: "$query"');
       isLoadingProducts(true);
-      // استخدام Firebase للبحث في المنتجات
-      FirebaseService.getProducts().then((allProducts) {
+      // استخدام Firebase للبحث في المنتجات (مع فلترة الفرع)
+      RemoteServices.getUserClosestBranch().then((branch) {
+        return FirebaseService.getProducts(branch: branch);
+      }).then((allProducts) {
         if (allProducts != null && allProducts.isNotEmpty) {
           // تصفية المنتجات حسب الفئة والبحث
           var filteredProducts = allProducts.where((product) {
@@ -186,7 +189,8 @@ class Products_Controller extends GetxController {
     productList.clear();
     currentPage.value = 1; // Reset current page when fetching new products
     try {
-      var allProducts = await FirebaseService.getProducts();
+      final branch = await RemoteServices.getUserClosestBranch();
+      var allProducts = await FirebaseService.getProducts(branch: branch);
       print("Fetched all products: ${allProducts?.length ?? 0} products");
       
       if (allProducts != null && allProducts.isNotEmpty) {
@@ -252,9 +256,10 @@ class Products_Controller extends GetxController {
     print("fetchCities called with categoryId: $categoryId");
     isLoadingItem(true);
     try {
-      // جلب الفئات الفرعية والمنتجات معاً
+      // جلب الفئات الفرعية والمنتجات معاً (مع فلترة الفرع)
       var citiesData = await FirebaseService.getSubCategories();
-      var allProducts = await FirebaseService.getProducts();
+      final branch = await RemoteServices.getUserClosestBranch();
+      var allProducts = await FirebaseService.getProducts(branch: branch);
       
       print("Fetched cities data: ${citiesData?.length ?? 0} cities");
       print("Fetched products data: ${allProducts?.length ?? 0} products");
@@ -327,7 +332,8 @@ class Products_Controller extends GetxController {
     print("🔍 Products_Controller - fetchProductByCategory called with categoryId: $categoryId");
     isLoadingProducts(true);
     try {
-      var productsData = await FirebaseService.getProducts();
+      final branch = await RemoteServices.getUserClosestBranch();
+      var productsData = await FirebaseService.getProducts(branch: branch);
       print("✅ Products_Controller - Fetched products data: ${productsData?.length ?? 0} products");
       
       if (productsData != null && productsData.isNotEmpty) {
@@ -388,7 +394,8 @@ class Products_Controller extends GetxController {
       try {
         int nextPage =
             currentPage.value + 1; // الصفحة التالية بناءً على المتغير الحالي
-        var allProducts = await FirebaseService.getProducts();
+        final branch = await RemoteServices.getUserClosestBranch();
+        var allProducts = await FirebaseService.getProducts(branch: branch);
         if (allProducts != null && allProducts.isNotEmpty) {
           // تصفية المنتجات حسب الفئة والفئة الفرعية
           var filteredProducts = allProducts.where((product) {

@@ -31,7 +31,7 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
     
     // تهيئة الفيديو مع معالجة الأخطاء
     try {
-      _videoController = VideoPlayerController.asset('order.mp4')
+      _videoController = VideoPlayerController.asset('assets/order.mp4')
         ..initialize().then((_) {
           if (mounted) {
             setState(() {
@@ -99,7 +99,9 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
           widget.order.orderstatus = newStatus;
           needsUpdate = true;
         }
-        if (widget.order.deliveryTime != newDeliveryTime) {
+        // تحديث وقت التوصيل فقط عند وجود قيمة جديدة - لا نستبدل قيمة جيدة بـ null
+        final hasNewDeliveryTime = newDeliveryTime != null && newDeliveryTime.toString().trim().isNotEmpty;
+        if (hasNewDeliveryTime && widget.order.deliveryTime != newDeliveryTime) {
           widget.order.deliveryTime = newDeliveryTime;
           needsUpdate = true;
         }
@@ -118,7 +120,9 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
             
             if (orderIndex != -1) {
               ordersController.ordersList[orderIndex].orderstatus = newStatus;
-              ordersController.ordersList[orderIndex].deliveryTime = newDeliveryTime;
+              if (hasNewDeliveryTime) {
+                ordersController.ordersList[orderIndex].deliveryTime = newDeliveryTime;
+              }
               ordersController.ordersList.refresh();
             }
           } catch (e) {

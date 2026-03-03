@@ -306,6 +306,7 @@ class NotificationsManagementScreen extends StatelessWidget {
           ),
         ],
       ),
+      barrierDismissible: true,
     );
   }
 
@@ -353,11 +354,15 @@ class NotificationsManagementScreen extends StatelessWidget {
           ),
         ],
       ),
+      barrierDismissible: true,
     );
   }
 
   void _showSendNotificationDialog() {
-    Get.dialog(SendNotificationDialog());
+    Get.dialog(
+      SendNotificationDialog(),
+      barrierDismissible: true,
+    );
   }
 
 }

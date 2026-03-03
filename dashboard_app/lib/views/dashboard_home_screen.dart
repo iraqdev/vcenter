@@ -108,10 +108,11 @@ class DashboardHomeScreen extends StatelessWidget {
           }),
           IconButton(
             icon: Icon(Icons.refresh),
-            onPressed: () {
+            onPressed: () async {
+              final branch = branchController.selectedBranch.value;
               userController.refresh();
               productController.refresh();
-              orderController.refresh();
+              orderController.refresh(branch: branch);
               notificationController.refresh();
             },
           ),
@@ -244,6 +245,17 @@ class DashboardHomeScreen extends StatelessWidget {
                     onTap: () {
                       Get.back();
                       Get.toNamed('/sliders');
+                    },
+                  ),
+                  
+                  // إدارة الفئات (صور الفئات في التطبيق)
+                  _buildDrawerItem(
+                    icon: Icons.category,
+                    title: 'إدارة الفئات',
+                    subtitle: 'تعديل أسماء وصور الفئات',
+                    onTap: () {
+                      Get.back();
+                      Get.toNamed('/categories');
                     },
                   ),
                   
@@ -488,6 +500,7 @@ class DashboardHomeScreen extends StatelessWidget {
           ),
         ),
       ),
+      barrierDismissible: true,
     );
   }
 
@@ -622,6 +635,7 @@ class DashboardHomeScreen extends StatelessWidget {
           ),
         ),
       ),
+      barrierDismissible: true,
     );
   }
 
@@ -689,6 +703,7 @@ class DashboardHomeScreen extends StatelessWidget {
           ),
         ],
       ),
+      barrierDismissible: true,
     );
   }
 
@@ -785,6 +800,7 @@ class DashboardHomeScreen extends StatelessWidget {
           ),
         ),
       ),
+      barrierDismissible: true,
     );
   }
 }

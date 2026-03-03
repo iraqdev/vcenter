@@ -55,9 +55,6 @@ class Home extends StatelessWidget {
                 ),
               ),
 
-              // بانر قطع غيار iPhone و iPad
-              SliverToBoxAdapter(child: _buildApplePartsBanner()),
-
               // عنوان المنتجات المميزة
               SliverToBoxAdapter(child: _buildSectionHeader()),
 
@@ -206,55 +203,6 @@ class Home extends StatelessWidget {
   }
 
   // عنوان القسم المحسن
-  Widget _buildApplePartsBanner() {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: Get.width * 0.04, vertical: Get.height * 0.01),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => Get.toNamed('/apple-parts'),
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: EdgeInsets.symmetric(vertical: Get.height * 0.018, horizontal: Get.width * 0.04),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.deepPurple.shade700, Colors.deepPurple.shade400],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.12),
-                  spreadRadius: 1,
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.phone_iphone, color: Colors.white, size: Get.height * 0.055),
-                SizedBox(width: Get.width * 0.03),
-                Expanded(
-                  child: Text(
-                    'قطع غيار iPhone و iPad',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: Get.width * 0.042,
-                    ),
-                  ),
-                ),
-                Icon(Icons.arrow_forward_ios, color: Colors.white70, size: Get.height * 0.02),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildSectionHeader() {
     return Container(
       margin: EdgeInsets.symmetric(

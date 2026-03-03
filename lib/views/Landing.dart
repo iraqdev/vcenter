@@ -19,6 +19,7 @@ import 'package:ecommerce/views/search_view.dart';
 import 'package:ecommerce/views/OrdersScreen.dart';
 import 'package:ecommerce/views/NotificationsScreen.dart';
 import 'package:ecommerce/controllers/app_notification_controller.dart';
+import 'package:ecommerce/controllers/ProfileController.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 
 
@@ -29,7 +30,7 @@ class Landing extends StatefulWidget {
   State<Landing> createState() => _LandingState();
 }
 
-class _LandingState extends State<Landing> {
+class _LandingState extends State<Landing> with WidgetsBindingObserver {
   final Landing_controller controller = Get.put(Landing_controller());
   final locale_controller = Get.put(Locale_controller());
 
@@ -52,12 +53,28 @@ class _LandingState extends State<Landing> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // حفظ Player ID عند فتح التطبيق
     _savePlayerIdOnAppOpen();
-    // فحص حالة المستخدم الحالي
+    // فحص حالة المستخدم الحالي (وحظره تلقائياً إذا تم من الداش)
     _checkUserStatus();
     // تهيئة متحكم الإشعارات
     Get.put(AppNotificationController());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // عند عودة التطبيق للمقدمة - فحص إذا تم حظر المستخدم من الداش
+    if (state == AppLifecycleState.resumed) {
+      _checkUserStatus();
+    }
   }
 
   // دالة لحفظ Player ID عند فتح التطبيق
@@ -100,7 +117,7 @@ class _LandingState extends State<Landing> {
     }
   }
 
-  // دالة لفحص حالة المستخدم الحالي
+  // دالة لفحص حالة المستخدم الحالي (وتسجيل الخروج تلقائياً إذا تم حظره من الداش)
   Future<void> _checkUserStatus() async {
     try {
       print('🔍 فحص حالة المستخدم في Landing...');
@@ -125,12 +142,33 @@ class _LandingState extends State<Landing> {
       
       final userData = usersSnapshot.docs.first.data();
       print('👤 بيانات المستخدم في Landing:');
+      print('   - active: ${userData['active']}');
       print('   - closestBranch: ${userData['closestBranch']}');
       print('   - shopLocation: ${userData['shopLocation']}');
       
+      // إذا تم حظر المستخدم من الداش - تسجيل الخروج وإبقاؤه يتصفح كزائر
+      final isActive = userData['active'] == true || userData['active'] == 1;
+      if (!isActive) {
+        print('🚫 المستخدم محظور - تسجيل الخروج والتصفح كزائر');
+        sharedPreferences?.clear();
+        try { Get.find<ProfileController>().checkLoginStatus(); } catch (_) {}
+        if (mounted) {
+          setState(() {}); // تحديث الواجهة لعرض وضع الزائر
+          Get.snackbar(
+            'تم حظر حسابك',
+            'تم تسجيل خروجك. يمكنك الاستمرار في التصفح كزائر',
+            backgroundColor: Colors.orange[700],
+            colorText: Colors.white,
+            duration: Duration(seconds: 4),
+            snackPosition: SnackPosition.TOP,
+            margin: EdgeInsets.all(16),
+          );
+        }
+        return;
+      }
+      
       if (userData['closestBranch'] == null || userData['closestBranch'].toString().isEmpty) {
         print('🚨 المستخدم في Landing لا يملك closestBranch - سيتم تحديد الموقع الآن');
-        // استدعاء دالة تحديد الموقع من main.dart
         Future.delayed(Duration(seconds: 2), () {
           _detectLocationForUser(phone, usersSnapshot.docs.first.id, userData);
         });
@@ -268,7 +306,7 @@ class _LandingState extends State<Landing> {
               ),
             ),
           ),
-          leadingWidth: Get.height * 0.12,
+          leadingWidth: 56,
           leading: logo(),
           title: Row(
             children: [
@@ -444,38 +482,35 @@ class _LandingState extends State<Landing> {
   }
 
 
-  GestureDetector logo() {
-    return GestureDetector(
-      onTap: () {
-        final uri = Uri.tryParse('');
-        if (uri != null) {
-          // launchUrl(uri);
-        }
-      },
-      child: Padding(
-        padding: EdgeInsetsDirectional.only(
-          start: Get.height * 0.01,
-          top: Get.height * 0.01,
-          bottom: Get.height * 0.01,
-        ),
+  Widget logo() {
+    return Center(
+      child: GestureDetector(
+        onTap: () {
+          final uri = Uri.tryParse('');
+          if (uri != null) {}
+        },
         child: Container(
+          width: 40,
+          height: 40,
+          padding: EdgeInsets.all(6),
           decoration: BoxDecoration(
             color: Colors.white,
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.08),
-                blurRadius: 8,
+                blurRadius: 6,
                 offset: Offset(0, 2),
               ),
             ],
           ),
-          padding: EdgeInsets.all(Get.height * 0.003),
-          child: Image.asset(
-            'assets/images/logo.png',
-            fit: BoxFit.contain,
-            width: Get.height * 0.035,
-            height: Get.height * 0.020,
+          child: ClipOval(
+            child: Image.asset(
+              'assets/images/logo.png',
+              fit: BoxFit.cover,
+              width: 28,
+              height: 28,
+            ),
           ),
         ),
       ),

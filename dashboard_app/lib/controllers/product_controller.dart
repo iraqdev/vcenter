@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import '../models/product_model.dart';
 import '../services/product_service.dart';
 import 'category_controller.dart';
+import 'branch_controller.dart';
 
 class ProductController extends GetxController {
   // قائمة المنتجات
@@ -31,18 +32,26 @@ class ProductController extends GetxController {
   void onInit() {
     super.onInit();
     categoryController = Get.find<CategoryController>();
-    fetchProducts();
+    final branchController = Get.find<BranchController>();
+    fetchProducts(branch: branchController.selectedBranch.value);
     fetchCategories();
     fetchStats();
+    
+    // الاستماع لتغيير الفرع
+    branchController.selectedBranch.listen((branch) {
+      print('🔄 ProductController - تم تغيير الفرع إلى: $branch');
+      fetchProducts(branch: branch);
+      fetchStats();
+    });
   }
 
-  // جلب جميع المنتجات
-  Future<void> fetchProducts() async {
+  // جلب جميع المنتجات (حسب الفرع المختار)
+  Future<void> fetchProducts({String? branch}) async {
     try {
       isLoading.value = true;
       errorMessage.value = '';
       
-      final fetchedProducts = await ProductService.getAllProducts();
+      final fetchedProducts = await ProductService.getAllProducts(branch: branch);
       products.value = fetchedProducts;
       filteredProducts.value = fetchedProducts;
       
@@ -64,10 +73,12 @@ class ProductController extends GetxController {
     }
   }
 
-  // جلب الإحصائيات
+  // جلب الإحصائيات (حسب الفرع المختار)
   Future<void> fetchStats() async {
     try {
-      final fetchedStats = await ProductService.getProductStats();
+      final branchController = Get.find<BranchController>();
+      final branch = branchController.selectedBranch.value;
+      final fetchedStats = await ProductService.getProductStats(branch: branch);
       stats.value = fetchedStats;
     } catch (e) {
       print('خطأ في جلب الإحصائيات: $e');
@@ -292,7 +303,8 @@ class ProductController extends GetxController {
 
   // تحديث البيانات
   Future<void> refresh() async {
-    await fetchProducts();
+    final branchController = Get.find<BranchController>();
+    await fetchProducts(branch: branchController.selectedBranch.value);
     await fetchCategories();
     await fetchStats();
   }

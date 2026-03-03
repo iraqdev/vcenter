@@ -311,6 +311,7 @@ class SlidersManagementScreen extends StatelessWidget {
         slider: null,
         onSave: (slider) => sliderController.addSlider(slider),
       ),
+      barrierDismissible: true,
     );
   }
 
@@ -321,6 +322,7 @@ class SlidersManagementScreen extends StatelessWidget {
         slider: slider,
         onSave: (updatedSlider) => sliderController.updateSlider(slider.id, updatedSlider),
       ),
+      barrierDismissible: true,
     );
   }
 
@@ -356,6 +358,7 @@ class SlidersManagementScreen extends StatelessWidget {
           ),
         ],
       ),
+      barrierDismissible: true,
     );
   }
 
@@ -428,6 +431,7 @@ class SlidersManagementScreen extends StatelessWidget {
           ),
         ],
       ),
+      barrierDismissible: true,
     );
   }
 }

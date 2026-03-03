@@ -405,6 +405,13 @@ class RegisterController extends GetxController {
   // دالة فتح الخريطة مع الموقع الحالي
   Future<void> openLocationMap() async {
     try {
+      // التحقق من تفعيل خدمات الموقع (مهم لـ iOS)
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        Get.snackbar('خطأ', 'يرجى تفعيل خدمات الموقع من إعدادات الجهاز');
+        return;
+      }
+
       // طلب صلاحيات الموقع أولاً
       LocationPermission permission = await Geolocator.requestPermission();
       
@@ -418,23 +425,28 @@ class RegisterController extends GetxController {
         return;
       }
       
-      // محاولة الحصول على الموقع الحالي
+      // محاولة الحصول على الموقع الحالي (مع timeout أطول لـ iOS)
       Position? currentPosition;
       try {
         currentPosition = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 15),
+          desiredAccuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 20),
         );
       } catch (e) {
         print('فشل في الحصول على الموقع الحالي: $e');
-        Get.snackbar('خطأ', 'فشل في تحديد موقعك الحالي. يرجى المحاولة مرة أخرى');
-        return;
+        // على iOS: فتح الخريطة بموقع افتراضي (بغداد) إذا فشل الحصول على الموقع
+        currentPosition = null;
+      }
+
+      LatLng initialLoc;
+      if (currentPosition != null) {
+        initialLoc = LatLng(currentPosition!.latitude, currentPosition!.longitude);
+      } else {
+        initialLoc = LatLng(33.3152, 44.3661);
       }
       
-      // فتح الخريطة مع الموقع الحالي
-      LatLng? result = await Get.to(() => MapPicker(
-        initialLocation: LatLng(currentPosition!.latitude, currentPosition!.longitude),
-      ));
+      // فتح الخريطة مع الموقع الحالي أو الافتراضي
+      LatLng? result = await Get.to(() => MapPicker(initialLocation: initialLoc));
       
       if (result != null) {
         shopLocation = result;
@@ -451,8 +463,9 @@ class RegisterController extends GetxController {
       } else {
         Get.snackbar('خطأ', 'لم يتم تحديد موقع. يجب تحديد موقع لإنشاء الحساب');
       }
-    } catch (e) {
-      Get.snackbar('خطأ', 'فشل في فتح الخريطة: ${e.toString()}');
+    } catch (e, stack) {
+      print('خطأ في openLocationMap: $e\n$stack');
+      Get.snackbar('خطأ', 'فشل في فتح الخريطة. يرجى المحاولة مرة أخرى');
     }
   }
 

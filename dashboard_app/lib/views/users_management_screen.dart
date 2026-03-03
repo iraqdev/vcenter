@@ -282,6 +282,7 @@ class UsersManagementScreen extends StatelessWidget {
           userController.updateUser(updatedUser);
         },
       ),
+      barrierDismissible: true,
     );
   }
 
@@ -323,6 +324,7 @@ class UsersManagementScreen extends StatelessWidget {
           ),
         ],
       ),
+      barrierDismissible: true,
     );
   }
 
@@ -358,6 +360,7 @@ class UsersManagementScreen extends StatelessWidget {
           ),
         ],
       ),
+      barrierDismissible: true,
     );
   }
 }

@@ -10,8 +10,8 @@ class UserService {
     try {
       Query query = _db.collection(_collection);
       
-      // فلترة حسب الفرع إذا تم تحديده
-      if (branch != null && branch.isNotEmpty && branch != 'العراق') {
+      // فلترة حسب الفرع (المسؤول والعراق يعرضان الكل)
+      if (branch != null && branch.isNotEmpty && branch != 'العراق' && branch != 'المسؤول') {
         print('📍 UserService - فلترة المستخدمين للفرع: $branch');
         query = query.where('closestBranch', isEqualTo: branch);
       }
@@ -151,8 +151,8 @@ class UserService {
       Query activeQuery = _db.collection(_collection).where('active', isEqualTo: true);
       Query newQuery = _db.collection(_collection).where('isReviewed', isEqualTo: false);
       
-      // فلترة حسب الفرع إذا تم تحديده
-      if (branch != null && branch.isNotEmpty && branch != 'العراق') {
+      // فلترة حسب الفرع (المسؤول والعراق يعرضان الكل)
+      if (branch != null && branch.isNotEmpty && branch != 'العراق' && branch != 'المسؤول') {
         allQuery = allQuery.where('closestBranch', isEqualTo: branch);
         activeQuery = activeQuery.where('closestBranch', isEqualTo: branch);
         newQuery = newQuery.where('closestBranch', isEqualTo: branch);

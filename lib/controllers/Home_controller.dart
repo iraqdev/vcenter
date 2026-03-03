@@ -24,7 +24,8 @@ class Home_controller extends GetxController {
     isLoadingProductes(true);
     try {
       print('Fetching products: page=$page, limit=$limit');
-      var products = await RemoteServices.fetchProductsRecently(page, limit);
+      final branch = await RemoteServices.getUserClosestBranch();
+      var products = await RemoteServices.fetchProductsRecently(page, limit, branch: branch);
       print('Fetched products: ${products?.length ?? 0} products');
       if (products != null && products.isNotEmpty && !_isDisposed) {
         productsList.value = products;
@@ -87,7 +88,8 @@ class Home_controller extends GetxController {
     await Future.delayed(Duration(milliseconds: 2000));
     List<TestItem> _list = [];
     String _inputText = myController?.text ?? '';
-    var filters = await RemoteServices.filterProducts(_inputText);
+    final branch = await RemoteServices.getUserClosestBranch();
+    var filters = await RemoteServices.filterProducts(_inputText, branch: branch);
     if (filters != null) {
       for (var product in filters) {
         // تحويل Product إلى TestItem إذا لزم الأمر
@@ -114,7 +116,8 @@ class Home_controller extends GetxController {
 
     try {
       print('Calling RemoteServices.filterItems for: $_inputText');
-      var filters = await RemoteServices.filterItems(_inputText);
+      final branch = await RemoteServices.getUserClosestBranch();
+      var filters = await RemoteServices.filterItems(_inputText, branch: branch);
 
       if (filters != null && filters.isNotEmpty) {
         print('Found ${filters.length} products from filterItems');
@@ -209,7 +212,8 @@ class Home_controller extends GetxController {
     isLoadingProductes(true);
     try {
       print('Searching for: $query');
-      var products = await RemoteServices.filterProducts(query);
+      final branch = await RemoteServices.getUserClosestBranch();
+      var products = await RemoteServices.filterProducts(query, branch: branch);
       if (products != null && products.isNotEmpty && !_isDisposed) {
         productsList.value = products;
         print('Search results: ${products.length} products found');

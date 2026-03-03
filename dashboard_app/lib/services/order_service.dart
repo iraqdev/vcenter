@@ -10,8 +10,8 @@ class OrderService {
     try {
       Query query = _db.collection(_collection);
       
-      // فلترة حسب الفرع إذا تم تحديده
-      if (branch != null && branch.isNotEmpty) {
+      // فلترة حسب الفرع (المسؤول يعرض الكل)
+      if (branch != null && branch.isNotEmpty && branch != 'المسؤول') {
         print('📍 OrderService - فلترة الطلبات للفرع: $branch');
         query = query.where('closestBranch', isEqualTo: branch);
       }
@@ -47,8 +47,8 @@ class OrderService {
     try {
       Query query = _db.collection(_collection).where('status', isEqualTo: status);
       
-      // فلترة حسب الفرع إذا تم تحديده
-      if (branch != null && branch.isNotEmpty) {
+      // فلترة حسب الفرع (المسؤول يعرض الكل)
+      if (branch != null && branch.isNotEmpty && branch != 'المسؤول') {
         print('📍 OrderService - فلترة الطلبات حسب الحالة $status للفرع: $branch');
         query = query.where('closestBranch', isEqualTo: branch);
       }
@@ -190,10 +190,10 @@ class OrderService {
     }
   }
 
-  // جلب إحصائيات الطلبات
-  static Future<Map<String, int>> getOrderStats() async {
+  // جلب إحصائيات الطلبات (مع فلترة حسب الفرع)
+  static Future<Map<String, int>> getOrderStats({String? branch}) async {
     try {
-      final allOrders = await getAllOrders();
+      final allOrders = await getAllOrders(branch: branch);
       
       return {
         'total': allOrders.length,

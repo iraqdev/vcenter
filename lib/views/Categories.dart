@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:ecommerce/controllers/Category_controller.dart';
 class Categories extends StatelessWidget {
    Categories({super.key});
@@ -33,57 +34,11 @@ class Categories extends StatelessWidget {
        ),
      );
    }
-   Widget _buildAppleCard() {
-     return Padding(
-       padding: EdgeInsets.only(right: Get.height * 0.009, left: Get.height * 0.009, bottom: Get.height * 0.012),
-       child: GestureDetector(
-         onTap: () => Get.toNamed('/apple-parts'),
-         child: Container(
-           padding: EdgeInsets.symmetric(vertical: Get.height * 0.02, horizontal: Get.width * 0.04),
-           decoration: BoxDecoration(
-             gradient: LinearGradient(
-               colors: [Colors.deepPurple.shade700, Colors.deepPurple.shade400],
-               begin: Alignment.centerLeft,
-               end: Alignment.centerRight,
-             ),
-             borderRadius: BorderRadius.circular(16),
-             boxShadow: [
-               BoxShadow(
-                 color: Colors.black.withOpacity(0.15),
-                 spreadRadius: 1,
-                 blurRadius: 8,
-                 offset: const Offset(0, 3),
-               ),
-             ],
-           ),
-           child: Row(
-             children: [
-               Icon(Icons.phone_iphone, color: Colors.white, size: Get.height * 0.06),
-               SizedBox(width: Get.width * 0.03),
-               Expanded(
-                 child: Text(
-                   'قطع غيار iPhone و iPad',
-                   style: TextStyle(
-                     color: Colors.white,
-                     fontWeight: FontWeight.bold,
-                     fontSize: Get.width * 0.045,
-                   ),
-                 ),
-               ),
-               Icon(Icons.arrow_forward_ios, color: Colors.white70, size: Get.height * 0.02),
-             ],
-           ),
-         ),
-       ),
-     );
-   }
-
    categorieslist() {
      return RefreshIndicator(
        onRefresh: () async => controller.fetchCategories(),
        child: CustomScrollView(
          slivers: [
-           SliverToBoxAdapter(child: _buildAppleCard()),
            SliverPadding(
              padding: EdgeInsets.only(right: Get.height * 0.009, left: Get.height * 0.009),
              sliver: SliverGrid(
@@ -110,6 +65,29 @@ class Categories extends StatelessWidget {
        ),
      );
    }
+   Widget _buildCategoryImage(String url) {
+     final size = Get.height * 0.12;
+     final width = Get.height * 0.18;
+     final placeholder = Icon(Icons.image_not_supported, size: Get.height * 0.1, color: Colors.grey);
+     if (url.isNotEmpty && (url.startsWith('http://') || url.startsWith('https://'))) {
+       return CachedNetworkImage(
+         imageUrl: url,
+         height: size,
+         width: width,
+         fit: BoxFit.contain,
+         placeholder: (_, __) => SizedBox(height: size, width: width, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
+         errorWidget: (_, __, ___) => Image.asset('assets/images/all.png', height: size, width: width, fit: BoxFit.contain, errorBuilder: (_, __, ___) => placeholder),
+       );
+     }
+     return Image.asset(
+       'assets/images/all.png',
+       height: size,
+       width: width,
+       fit: BoxFit.contain,
+       errorBuilder: (_, __, ___) => placeholder,
+     );
+   }
+
    CategoryItem(String url , String title  , int index){
      return GestureDetector(
        onTap: (){
@@ -137,13 +115,7 @@ class Categories extends StatelessWidget {
            children: <Widget>[
              spaceH(Get.height * 0.02),
              Center(
-               child: Image.asset(
-                 'assets/images/all.png',
-                 height: Get.height * 0.12,
-                 width: Get.height * 0.18,
-                 fit: BoxFit.contain,
-                 errorBuilder: (_, __, ___) => Icon(Icons.image_not_supported, size: Get.height * 0.1, color: Colors.grey),
-               ),
+               child: _buildCategoryImage(url),
              ),
              spaceH(Get.height * 0.01),
              Center(

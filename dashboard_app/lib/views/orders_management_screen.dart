@@ -5,7 +5,7 @@ import '../controllers/branch_controller.dart';
 import '../models/order_model.dart';
 import '../widgets/order_card.dart';
 import '../widgets/order_status_dialog.dart';
-import '../widgets/order_details_dialog.dart';
+import 'order_details_screen.dart';
 
 class OrdersManagementScreen extends StatelessWidget {
   OrdersManagementScreen({super.key});
@@ -340,11 +340,14 @@ class OrdersManagementScreen extends StatelessWidget {
   }
 
   void _showOrderDetails(OrderModel order) {
-    Get.dialog(OrderDetailsDialog(order: order));
+    Get.to(() => OrderDetailsScreen(order: order));
   }
 
   void _showStatusDialog(OrderModel order) {
-    Get.dialog(OrderStatusDialog(order: order));
+    Get.dialog(
+      OrderStatusDialog(order: order),
+      barrierDismissible: true,
+    );
   }
 
   void _showDeleteConfirmation(OrderModel order) {
@@ -370,6 +373,7 @@ class OrdersManagementScreen extends StatelessWidget {
           ),
         ],
       ),
+      barrierDismissible: true,
     );
   }
 
@@ -483,6 +487,7 @@ class OrdersManagementScreen extends StatelessWidget {
           ),
         ],
       ),
+      barrierDismissible: true,
     );
   }
 }

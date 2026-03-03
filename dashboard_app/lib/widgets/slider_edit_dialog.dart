@@ -221,7 +221,7 @@ class _SliderEditDialogState extends State<SliderEditDialog> {
       widget.onSave(slider);
       
       Get.snackbar('نجح', 'تم حفظ العرض بنجاح');
-      Navigator.of(context).pop();
+      Get.back();
       
     } catch (e) {
       print('❌ خطأ في حفظ العرض: $e');
@@ -307,7 +307,7 @@ class _SliderEditDialogState extends State<SliderEditDialog> {
           ),
         ),
         IconButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => Get.back(),
           icon: Icon(Icons.close),
         ),
       ],

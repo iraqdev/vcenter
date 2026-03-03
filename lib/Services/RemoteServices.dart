@@ -10,6 +10,7 @@ import 'package:ecommerce/models/SizeModel.dart';
 import 'package:ecommerce/models/UserInfo.dart';
 import '../models/Slider.dart';
 import 'package:ecommerce/utils/image_utils.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class RemoteServices {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -32,12 +33,17 @@ class RemoteServices {
         return '{"message":"No user found"}';
       }
       final data = query.docs.first.data();
+      final isActive = data['active'] == true || data['active'] == 1;
+      // إذا كان المستخدم محظوراً من الداش - لا نسمح بتسجيل الدخول
+      if (!isActive) {
+        return '{"message":"Account is banned"}';
+      }
       final response = {
         'message': 'Login Successfully',
         'phone': data['phone'],
         'user_id': data['originalId'] ?? data['id'] ?? 0,
         'near': data['near'] ?? '',
-        'active': (data['active'] == true || data['active'] == 1) ? 1 : 0,
+        'active': 1,
         'username': data['name'] ?? '',
       };
       return jsonEncode(response);
@@ -134,18 +140,38 @@ class RemoteServices {
     }
   }
 
+  // جلب فرع المستخدم الأقرب من Firebase
+  static Future<String?> getUserClosestBranch() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final phone = prefs.getString('phone');
+      if (phone == null || phone.isEmpty) return null;
+      final query = await _db.collection(_colUsers).where('phone', isEqualTo: phone).limit(1).get();
+      if (query.docs.isEmpty) return null;
+      return query.docs.first.data()['closestBranch'] as String?;
+    } catch (e) {
+      return null;
+    }
+  }
+
   //Fetch Sizes by Color
   static Future<List<SizeModel>?> fetchSize(id) async {
     // لا يوجد حجم في البيانات المقدمة، سنعيد قائمة فارغة مؤقتًا
     return [];
   }
 
-  //Fetch Products From Endpoint (getProducts)
-  static Future<List<Product>?> fetchProducts() async {
+  //Fetch Products From Endpoint (getProducts) - مع فلترة حسب فرع المستخدم
+  static Future<List<Product>?> fetchProducts({String? branch}) async {
     try {
-      print('🔍 RemoteServices - جلب المنتجات من Firestore...');
+      print('🔍 RemoteServices - جلب المنتجات من Firestore للفرع: ${branch ?? "الكل"}');
       final snap = await _db.collection(_colProducts).where('active', isEqualTo: true).get();
-      final list = snap.docs.map((d) => d.data()).toList();
+      var list = snap.docs.map((d) => d.data()).toList();
+      if (branch != null && branch.isNotEmpty && branch != 'المسؤول') {
+        list = list.where((data) {
+          final pBranch = data['branch'];
+          return pBranch == branch || pBranch == null || (pBranch.toString().isEmpty);
+        }).toList();
+      }
       
       print('📊 RemoteServices - تم جلب ${list.length} منتج');
       
@@ -183,24 +209,26 @@ class RemoteServices {
     }
   }
 
-  static Future<List<Product>?> filterProducts(String title) async {
+  static Future<List<Product>?> filterProducts(String title, {String? branch}) async {
     // بحث في العنوان والوصف
     try {
       final q = title.trim();
-      if (q.isEmpty) return await fetchProducts();
+      if (q.isEmpty) return await fetchProducts(branch: branch);
       
-      // جلب جميع المنتجات أولاً
-      final snap = await _db.collection(_colProducts).get();
+      // جلب المنتجات ثم فلترة محلياً
+      final snap = await _db.collection(_colProducts).where('active', isEqualTo: true).get();
       final allProducts = snap.docs.map((d) => d.data()).toList();
       
       // تصفية المنتجات محلياً للبحث في العنوان والوصف
-      final filteredProducts = allProducts.where((data) {
+      var filteredProducts = snap.docs.map((d) => d.data()).toList();
+      filteredProducts = filteredProducts.where((data) {
         final productTitle = (data['title'] ?? '').toString().toLowerCase();
         final productDescription = (data['description'] ?? '').toString().toLowerCase();
         final searchQuery = q.toLowerCase();
-        
-        // البحث في العنوان والوصف
-        return productTitle.contains(searchQuery) || productDescription.contains(searchQuery);
+        final pBranch = data['branch'];
+        final branchMatch = branch == null || branch.isEmpty || branch == 'المسؤول' ||
+            pBranch == branch || pBranch == null || (pBranch.toString().isEmpty);
+        return (productTitle.contains(searchQuery) || productDescription.contains(searchQuery)) && branchMatch;
       }).toList();
       
       final jsonStr = jsonEncode(filteredProducts.map((data) => {
@@ -224,27 +252,39 @@ class RemoteServices {
     }
   }
 
-  static Future<List<Product>?> filterItems(String title) async {
+  static Future<List<Product>?> filterItems(String title, {String? branch}) async {
     // ترميز النص للتعامل مع المسافات والأحرف الخاصة
     try {
-      return await filterProducts(title);
+      return await filterProducts(title, branch: branch);
     } catch (e) {
       return [];
     }
   }
 
-  //Fetch Items filter From Endpoint (getProduct)
+  //Fetch Items filter From Endpoint (getProduct) - مع فلترة حسب الفرع
   static Future<List<Product>?> fetchProductsRecently(
     int page,
-    int limit,
-  ) async {
+    int limit, {
+    String? branch,
+  }) async {
     try {
-      final snap = await _db
-          .collection(_colProducts)
-          .orderBy('createdAt', descending: true)
-          .limit(limit)
-          .get();
-      final list = snap.docs.map((d) => d.data()).toList();
+      final snap = await _db.collection(_colProducts).where('active', isEqualTo: true).get();
+      var list = snap.docs.map((d) => d.data()).toList();
+      if (branch != null && branch.isNotEmpty && branch != 'المسؤول') {
+        list = list.where((data) {
+          final pBranch = data['branch'];
+          return pBranch == branch || pBranch == null || (pBranch.toString().isEmpty);
+        }).toList();
+      }
+      list.sort((a, b) {
+        final aDate = a['createdAt'];
+        final bDate = b['createdAt'];
+        if (aDate == null || bDate == null) return 0;
+        final aD = aDate is Timestamp ? aDate.toDate() : DateTime.now();
+        final bD = bDate is Timestamp ? bDate.toDate() : DateTime.now();
+        return bD.compareTo(aD);
+      });
+      if (limit > 0) list = list.take(limit).toList();
       final jsonStr = jsonEncode(list.map((data) => {
         'id': data['originalId'] ?? 0,
         'title': data['title'] ?? '',
@@ -266,8 +306,8 @@ class RemoteServices {
     }
   }
 
-  static Future<List<Product>?> fetchProductsLast(int page, int limit) async {
-    return fetchProductsRecently(page, limit);
+  static Future<List<Product>?> fetchProductsLast(int page, int limit, {String? branch}) async {
+    return fetchProductsRecently(page, limit, branch: branch);
   }
 
   //add new bill To Endpoint (addBill)
@@ -377,6 +417,7 @@ class RemoteServices {
             'orderstatus': data['orderstatus'] ?? 'جاري التجهيز',
             'items': data['items'] ?? [], // إضافة تفاصيل المنتجات
             'closestBranch': data['closestBranch'], // إضافة الفرع الأقرب
+            'deliveryTime': data['deliveryTime'], // وقت التوصيل من الداشبورد
           };
         } catch (e) {
           print('❌ RemoteServices - خطأ في تحويل طلب: $e');

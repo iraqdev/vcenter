@@ -58,7 +58,8 @@ class RecentlyProductsController extends GetxController {
     if (_isDisposed) return;
     isLoadingItem(true);
     try {
-      var products = await RemoteServices.fetchProductsLast(page, limit);
+      final branch = await RemoteServices.getUserClosestBranch();
+      var products = await RemoteServices.fetchProductsLast(page, limit, branch: branch);
       if (products != null && !_isDisposed) {
         if (page == 1) {
           productList.value = products; // استبدال القائمة
@@ -87,7 +88,8 @@ class RecentlyProductsController extends GetxController {
       isLoadingItem(true); // تحميل الصفحة الأولى
     }
     try {
-      var products = await RemoteServices.fetchProductsLast(page, limit);
+      final branch = await RemoteServices.getUserClosestBranch();
+      var products = await RemoteServices.fetchProductsLast(page, limit, branch: branch);
       if (products != null && !_isDisposed) {
         if (page == 1) {
           productList.value = products;
@@ -128,8 +130,9 @@ class RecentlyProductsController extends GetxController {
     if (_isDisposed) return;
     isLoadingMore(true);
     try {
+      final branch = await RemoteServices.getUserClosestBranch();
       var newPage = page.value + 1;
-      var products = await RemoteServices.fetchProductsLast(newPage, 10);
+      var products = await RemoteServices.fetchProductsLast(newPage, 10, branch: branch);
       if (products != null && products.isNotEmpty && !_isDisposed) {
         productList.addAll(products);
         page.value = newPage;
@@ -213,7 +216,8 @@ class RecentlyProductsController extends GetxController {
     isLoadingItem(true);
     try {
       // البحث في جميع المنتجات من السيرفر
-      var products = await RemoteServices.filterProducts(query);
+      final branch = await RemoteServices.getUserClosestBranch();
+      var products = await RemoteServices.filterProducts(query, branch: branch);
       if (products != null && !_isDisposed) {
         productList.value = products;
       } else {
@@ -242,7 +246,8 @@ class RecentlyProductsController extends GetxController {
 
     isLoadingItem(true);
     try {
-      var products = await RemoteServices.filterProducts(query);
+      final branch = await RemoteServices.getUserClosestBranch();
+      var products = await RemoteServices.filterProducts(query, branch: branch);
       if (products != null && !_isDisposed) {
         productList.value = products;
         print(
@@ -276,7 +281,8 @@ class RecentlyProductsController extends GetxController {
       return [];
     }
     try {
-      var filters = await RemoteServices.filterItems(_inputText);
+      final branch = await RemoteServices.getUserClosestBranch();
+      var filters = await RemoteServices.filterItems(_inputText, branch: branch);
       if (filters != null && filters.isNotEmpty && !_isDisposed) {
         productList.value = filters;
         print(

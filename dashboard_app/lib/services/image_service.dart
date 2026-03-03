@@ -42,6 +42,22 @@ class ImageService {
     }
   }
 
+  // رفع صورة فئة (للعرض في التطبيق)
+  static Future<String?> uploadCategoryImage(File imageFile, int originalId) async {
+    try {
+      final fileName = 'category_$originalId.jpg';
+      final ref = _storage.ref().child('categories/$fileName');
+      final uploadTask = ref.putFile(imageFile);
+      final snapshot = await uploadTask;
+      final downloadUrl = await snapshot.ref.getDownloadURL();
+      print('تم رفع صورة الفئة بنجاح: $downloadUrl');
+      return downloadUrl;
+    } catch (e) {
+      print('خطأ في رفع صورة الفئة: $e');
+      return null;
+    }
+  }
+
   // رفع صورة منتج وحذف الصورة القديمة
   static Future<String?> uploadProductImage(File imageFile, String? oldImageUrl) async {
     try {

@@ -5,7 +5,6 @@ import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:ecommerce/controllers/ProfileController.dart';
 import 'package:ecommerce/Bindings/Landing_bindings.dart';
 import 'package:ecommerce/main.dart';
-import 'package:ecommerce/utils/apple_disclaimer.dart';
 
 import 'EditProfileView.dart';
 import 'Login.dart';
@@ -751,45 +750,6 @@ class Profile extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // تنبيه Apple (مطلوب من App Store 1.1.6): لا نستخدم قطع Apple، الاستخدام يلغي الضمان
-                          Container(
-                            width: double.infinity,
-                            padding: EdgeInsets.all(16),
-                            margin: EdgeInsets.only(bottom: 20),
-                            decoration: BoxDecoration(
-                              color: Colors.amber.shade50,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.amber.shade700, width: 1.5),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(Icons.info_outline_rounded, color: Colors.amber.shade800, size: 22),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      AppleDisclaimer.title,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                        color: Colors.amber.shade900,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                SizedBox(height: 10),
-                                Text(
-                                  AppleDisclaimer.body,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    height: 1.5,
-                                    color: Colors.grey[800],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
                           // معلومات الفريق
                           _buildInfoCardWithColor(
                             icon: Icons.group_rounded,
@@ -827,7 +787,7 @@ class Profile extends StatelessWidget {
                           SizedBox(height: 16),
                           _buildSectionCard(
                             title: 'ماذا نفعل',
-                            content: 'نوفر قطع غيار للهواتف (غير تابعة لـ Apple) لأصحاب مراكز الصيانة مع إمكانية البحث والطلب بسهولة عبر التطبيق وتوصيل سريع. نحن لا نقدم إصلاحاً معتمداً من Apple.',
+                            content: 'نوفر قطع غيار للهواتف لأصحاب مراكز الصيانة مع إمكانية البحث والطلب بسهولة عبر التطبيق وتوصيل سريع.',
                             icon: Icons.work_rounded,
                             color: Colors.orange,
                           ),

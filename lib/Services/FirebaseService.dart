@@ -3,12 +3,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class FirebaseService {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  static Future<List<Map<String, dynamic>>?> getProducts() async {
+  static Future<List<Map<String, dynamic>>?> getProducts({String? branch}) async {
     try {
-      print('🔍 FirebaseService - جلب المنتجات...');
-      // استخدام نفس الفلتر المستخدم في RemoteServices
+      print('🔍 FirebaseService - جلب المنتجات للفرع: ${branch ?? "الكل"}');
       final snap = await _db.collection('products').where('active', isEqualTo: true).get();
-      final products = snap.docs.map((d) => d.data()).toList();
+      var products = snap.docs.map((d) => d.data()).toList();
+      // تصفية حسب الفرع: المنتجات القديمة بدون branch تظهر لجميع الفروع
+      if (branch != null && branch.isNotEmpty && branch != 'المسؤول') {
+        products = products.where((p) {
+          final pBranch = p['branch'];
+          return pBranch == branch || pBranch == null || pBranch.toString().isEmpty;
+        }).toList();
+      }
       print('✅ FirebaseService - تم جلب ${products.length} منتج');
       
       // طباعة تفاصيل المنتجات للتشخيص

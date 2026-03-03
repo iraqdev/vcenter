@@ -16,7 +16,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     
     <application
-        android:label="vcenter"
+        android:label="v center"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
         <activity

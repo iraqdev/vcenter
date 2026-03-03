@@ -154,6 +154,11 @@ class Login_controller extends GetxController {
             is_error();
             print(json_response['message']);
             isnot_loading();
+          } else if (json_response['message'] == "Account is banned") {
+            errormsg = "تم حظر حسابك. يمكنك التصفح كزائر من الزر أدناه.";
+            is_error();
+            print(json_response['message']);
+            isnot_loading();
           } else if (json_response['message'] == "Invalid phone number") {
             errormsg =
                 "رقم الهاتف غير صحيح. تأكد من إدخال رقم هاتف عراقي صحيح (11 رقم يبدأ بـ 07).";

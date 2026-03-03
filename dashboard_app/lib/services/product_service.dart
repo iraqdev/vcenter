@@ -5,17 +5,38 @@ class ProductService {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
   static const String _collection = 'products';
 
-  // جلب جميع المنتجات
-  static Future<List<ProductModel>> getAllProducts() async {
+  // جلب جميع المنتجات (مع فلترة حسب الفرع - المسؤول يعرض الكل)
+  static Future<List<ProductModel>> getAllProducts({String? branch}) async {
     try {
-      final querySnapshot = await _db
-          .collection(_collection)
-          .orderBy('createdAt', descending: true)
-          .get();
+      Query query = _db.collection(_collection);
       
-      return querySnapshot.docs
-          .map((doc) => ProductModel.fromFirestore(doc.data(), doc.id))
+      // فلترة حسب الفرع (المسؤول يعرض كل المنتجات)
+      if (branch != null && branch.isNotEmpty && branch != 'المسؤول') {
+        print('📍 ProductService - فلترة المنتجات للفرع: $branch');
+        query = query.where('branch', isEqualTo: branch);
+      }
+      
+      final querySnapshot = await query.get();
+      
+      final products = querySnapshot.docs
+          .map((doc) {
+            final data = doc.data();
+            final mapData = data is Map
+                ? Map<String, dynamic>.from(data as Map)
+                : <String, dynamic>{};
+            return ProductModel.fromFirestore(mapData, doc.id);
+          })
           .toList();
+      
+      // ترتيب محلياً حسب تاريخ الإنشاء
+      products.sort((a, b) {
+        final aDate = a.createdAt ?? DateTime(0);
+        final bDate = b.createdAt ?? DateTime(0);
+        return bDate.compareTo(aDate);
+      });
+      
+      print('✅ ProductService - تم جلب ${products.length} منتج للفرع: ${branch ?? "الكل"}');
+      return products;
     } catch (e) {
       print('خطأ في جلب المنتجات: $e');
       return [];
@@ -32,7 +53,13 @@ class ProductService {
           .get();
       
       return querySnapshot.docs
-          .map((doc) => ProductModel.fromFirestore(doc.data(), doc.id))
+          .map((doc) {
+            final data = doc.data();
+            final mapData = data is Map
+                ? Map<String, dynamic>.from(data as Map)
+                : <String, dynamic>{};
+            return ProductModel.fromFirestore(mapData, doc.id);
+          })
           .toList();
     } catch (e) {
       print('خطأ في جلب المنتجات حسب الفئة: $e');
@@ -45,7 +72,10 @@ class ProductService {
     try {
       final doc = await _db.collection(_collection).doc(productId).get();
       if (doc.exists) {
-        return ProductModel.fromFirestore(doc.data()!, doc.id);
+        final data = doc.data();
+        final mapData =
+            data is Map ? Map<String, dynamic>.from(data as Map) : <String, dynamic>{};
+        return ProductModel.fromFirestore(mapData, doc.id);
       }
       return null;
     } catch (e) {
@@ -122,7 +152,13 @@ class ProductService {
           .get();
       
       return querySnapshot.docs
-          .map((doc) => ProductModel.fromFirestore(doc.data(), doc.id))
+          .map((doc) {
+            final data = doc.data();
+            final mapData = data is Map
+                ? Map<String, dynamic>.from(data as Map)
+                : <String, dynamic>{};
+            return ProductModel.fromFirestore(mapData, doc.id);
+          })
           .toList();
     } catch (e) {
       print('خطأ في البحث: $e');
@@ -137,7 +173,10 @@ class ProductService {
       final categories = <int>{};
       
       for (var doc in querySnapshot.docs) {
-        final data = doc.data();
+        final rawData = doc.data();
+        final data = rawData is Map
+            ? Map<String, dynamic>.from(rawData as Map)
+            : <String, dynamic>{};
         if (data['category'] != null) {
           final categoryId = data['category'] is String 
               ? int.tryParse(data['category']) 
@@ -155,17 +194,24 @@ class ProductService {
     }
   }
 
-  // إحصائيات المنتجات
-  static Future<Map<String, int>> getProductStats() async {
+  // إحصائيات المنتجات (مع فلترة حسب الفرع - المسؤول يعرض الكل)
+  static Future<Map<String, int>> getProductStats({String? branch}) async {
     try {
-      final querySnapshot = await _db.collection(_collection).get();
+      Query query = _db.collection(_collection);
+      if (branch != null && branch.isNotEmpty && branch != 'المسؤول') {
+        query = query.where('branch', isEqualTo: branch);
+      }
+      final querySnapshot = await query.get();
       
       int totalProducts = querySnapshot.docs.length;
       int activeProducts = 0;
       int inactiveProducts = 0;
       
       for (var doc in querySnapshot.docs) {
-        final data = doc.data();
+        final rawData = doc.data();
+        final data = rawData is Map
+            ? Map<String, dynamic>.from(rawData as Map)
+            : <String, dynamic>{};
         if (data['active'] == true) {
           activeProducts++;
         } else {

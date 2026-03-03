@@ -554,6 +554,7 @@ class ProductCard extends StatelessWidget {
           ),
         ],
       ),
+      barrierDismissible: true,
     );
   }
 

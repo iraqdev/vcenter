@@ -5,6 +5,7 @@ import 'dart:io';
 import '../models/product_model.dart';
 import '../controllers/category_controller.dart';
 import '../controllers/subcategory_controller.dart';
+import '../controllers/branch_controller.dart';
 import '../services/image_service.dart';
 
 class ProductEditDialog extends StatefulWidget {
@@ -36,6 +37,9 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
   // متغير لتتبع الفئة الفرعية المختارة
   int? _selectedSubCategory;
   
+  // متغير لتتبع الفرع المختار (مطلوب عند إضافة منتج جديد)
+  String? _selectedBranch;
+  
   // متغيرات إدارة الصور
   List<File> _selectedImages = [];
   bool _isUploadingImages = false;
@@ -57,7 +61,13 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
       _modelController.text = widget.product!.model ?? '';
       _subCategoryController.text = widget.product!.subCategory?.toString() ?? '';
       _selectedSubCategory = widget.product!.subCategory;
+      _selectedBranch = widget.product!.branch;
       _isActive = widget.product!.active;
+    } else {
+      // عند إضافة منتج جديد: استخدم الفرع الحالي من الداش (إن لم يكن المسؤول)
+      final branchController = Get.find<BranchController>();
+      final currentBranch = branchController.selectedBranch.value;
+      _selectedBranch = currentBranch == 'المسؤول' ? null : currentBranch;
     }
   }
 
@@ -316,6 +326,37 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
                           },
                         );
                       }),
+                      SizedBox(height: 20),
+                      
+                      // اختيار الفرع (مطلوب - يحدد أين يظهر هذا المنتج)
+                      DropdownButtonFormField<String>(
+                        value: _selectedBranch,
+                        decoration: InputDecoration(
+                          labelText: 'الفرع *',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          prefixIcon: Icon(Icons.store),
+                        ),
+                        items: ['الغزالية', 'الزعفرانية', 'الاعظمية', 'العراق']
+                            .map((String branch) {
+                          return DropdownMenuItem<String>(
+                            value: branch,
+                            child: Text(branch),
+                          );
+                        }).toList(),
+                        onChanged: (String? value) {
+                          setState(() {
+                            _selectedBranch = value;
+                          });
+                        },
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'يرجى اختيار الفرع الذي سيظهر فيه المنتج';
+                          }
+                          return null;
+                        },
+                      ),
                       SizedBox(height: 20),
                       
                       // قسم الصورة
@@ -879,8 +920,9 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
         images = [imageUrl];
       }
 
+      final newId = DateTime.now().millisecondsSinceEpoch.toString();
       final product = ProductModel(
-        id: widget.product?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+        id: widget.product?.id ?? newId,
         title: _nameController.text.trim(),
         description: _descriptionController.text.trim(),
         price: int.parse(_priceController.text),
@@ -888,15 +930,17 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
         images: images,
         category: int.parse(_categoryController.text),
         active: _isActive,
-        originalId: widget.product?.originalId,
+        originalId: widget.product?.originalId ?? DateTime.now().millisecondsSinceEpoch,
         createdAt: widget.product?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
+        branch: _selectedBranch,
         brand: _brandController.text.trim().isEmpty ? null : _brandController.text.trim(),
         model: _modelController.text.trim().isEmpty ? null : _modelController.text.trim(),
         subCategory: _selectedSubCategory,
       );
 
       widget.onSave(product);
+      Get.back(); // إغلاق الدايلوغ بعد الحفظ
     }
   }
 }

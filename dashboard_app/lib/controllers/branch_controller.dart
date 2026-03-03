@@ -2,8 +2,9 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class BranchController extends GetxController {
-  // قائمة الفروع المتاحة
+  // قائمة الفروع المتاحة (المسؤول يظهر كل شيء)
   static const List<String> branches = [
+    'المسؤول',
     'الغزالية',
     'الزعفرانية',
     'الاعظمية',
@@ -87,6 +88,8 @@ class BranchController extends GetxController {
   // الحصول على اسم الفرع بالإنجليزية (للاستخدام في المفاتيح)
   String getBranchKey() {
     switch (selectedBranch.value) {
+      case 'المسؤول':
+        return 'admin';
       case 'الغزالية':
         return 'ghazaliya';
       case 'الزعفرانية':
@@ -99,10 +102,15 @@ class BranchController extends GetxController {
         return 'iraq';
     }
   }
+
+  // هل الفرع الحالي هو المسؤول (يعرض كل البيانات بدون عزل)
+  bool get isAdminBranch => selectedBranch.value == 'المسؤول';
   
   // الحصول على أيقونة الفرع
   String getBranchIcon(String branch) {
     switch (branch) {
+      case 'المسؤول':
+        return '👑';
       case 'الغزالية':
         return '🏢';
       case 'الزعفرانية':

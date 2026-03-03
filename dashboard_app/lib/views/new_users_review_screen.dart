@@ -293,6 +293,7 @@ class NewUsersReviewScreen extends StatelessWidget {
           ),
         ],
       ),
+      barrierDismissible: true,
     );
   }
 
@@ -351,6 +352,7 @@ class NewUsersReviewScreen extends StatelessWidget {
           ),
         ],
       ),
+      barrierDismissible: true,
     );
   }
 
@@ -399,6 +401,7 @@ class NewUsersReviewScreen extends StatelessWidget {
           ),
         ],
       ),
+      barrierDismissible: true,
     );
   }
 
@@ -445,6 +448,7 @@ class NewUsersReviewScreen extends StatelessWidget {
   void _showMapOptionsDialog(double lat, double lng) {
     showDialog(
       context: Get.context!,
+      barrierDismissible: true,
       builder: (BuildContext context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(

@@ -12,6 +12,7 @@ class ProductModel {
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final Map<String, String>? branchMessages; // رسائل خاصة بكل فرع
+  final String? branch; // الفرع الذي ينتمي إليه المنتج (الغزالية، الزعفرانية، الاعظمية، العراق)
   final String? brand; // العلامة التجارية
   final String? logo; // شعار المنتج
   final String? logoBrand; // شعار العلامة التجارية
@@ -32,6 +33,7 @@ class ProductModel {
     this.createdAt,
     this.updatedAt,
     this.branchMessages,
+    this.branch,
     this.brand,
     this.logo,
     this.logoBrand,
@@ -70,6 +72,7 @@ class ProductModel {
       createdAt: data['createdAt']?.toDate(),
       updatedAt: data['updatedAt']?.toDate(),
       branchMessages: branchMessages,
+      branch: data['branch'],
       brand: data['brand'],
       logo: data['logo'],
       logoBrand: data['logoBrand'],
@@ -90,6 +93,7 @@ class ProductModel {
       'active': active,
       'originalId': originalId,
       'branchMessages': branchMessages ?? {},
+      'branch': branch ?? '',
       'brand': brand ?? '',
       'logo': logo ?? '',
       'logoBrand': logoBrand ?? '',
@@ -115,6 +119,7 @@ class ProductModel {
     DateTime? createdAt,
     DateTime? updatedAt,
     Map<String, String>? branchMessages,
+    String? branch,
     String? brand,
     String? logo,
     String? logoBrand,
@@ -135,6 +140,7 @@ class ProductModel {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       branchMessages: branchMessages ?? this.branchMessages,
+      branch: branch ?? this.branch,
       brand: brand ?? this.brand,
       logo: logo ?? this.logo,
       logoBrand: logoBrand ?? this.logoBrand,

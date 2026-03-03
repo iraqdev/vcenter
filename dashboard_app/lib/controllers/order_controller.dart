@@ -101,10 +101,12 @@ class OrderController extends GetxController {
     }
   }
 
-  // جلب الإحصائيات
+  // جلب الإحصائيات (حسب الفرع المختار)
   Future<void> fetchStats() async {
     try {
-      final fetchedStats = await OrderService.getOrderStats();
+      final branchController = Get.find<BranchController>();
+      final branch = branchController.selectedBranch.value;
+      final fetchedStats = await OrderService.getOrderStats(branch: branch);
       stats.value = fetchedStats;
     } catch (e) {
       print('خطأ في جلب الإحصائيات: $e');
