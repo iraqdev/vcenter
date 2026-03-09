@@ -31,7 +31,7 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
     
     // تهيئة الفيديو مع معالجة الأخطاء
     try {
-      _videoController = VideoPlayerController.asset('assets/order.mp4')
+      _videoController = VideoPlayerController.asset('assets/order.MP4')
         ..initialize().then((_) {
           if (mounted) {
             setState(() {

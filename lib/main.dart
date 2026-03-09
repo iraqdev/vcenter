@@ -73,15 +73,18 @@ void main() async {
   BoxCart = await Hive.openBox<CartModel>('BoxCart');
   BoxFavorite = await Hive.openBox<FavoriteModel>('Favorite');
   
-  // تهيئة OneSignal مع معالجة أفضل للأخطاء
+  // تهيئة OneSignal مع معالجة أفضل للأخطاء (نفس App ID للتطبيقين)
   try {
-    OneSignal.initialize('806c1a69-cd15-41b1-8f83-d8a8b3f218f6');
+    OneSignal.initialize('8fbbffe4-d855-4384-b567-94354236f78a');
     
     // طلب إذن الإشعارات
     OneSignal.Notifications.requestPermission(true);
     
     // إعداد OneSignal
     OneSignal.User.pushSubscription.optIn();
+    
+    // تمييز أجهزة التطبيق الرئيسي (العملاء)
+    OneSignal.User.addTagWithKey('app_type', 'customer');
     
     print('✅ OneSignal initialized successfully');
   } catch (e) {
@@ -91,22 +94,9 @@ void main() async {
   // تسجيل AppNotificationController
   Get.put(AppNotificationController());
   
-  // إعداد معالج الإشعارات
-  OneSignal.Notifications.addClickListener((event) {
-    print('🔔 تم النقر على الإشعار: ${event.notification.title}');
-    print('   - Body: ${event.notification.body}');
-    print('   - Data: ${event.notification.additionalData}');
-    // يمكنك إضافة منطق التنقل هنا
-  });
-
-  // إعداد معالج الإشعارات في الخلفية
+  // مراقبة تغييرات إذن الإشعارات
   OneSignal.Notifications.addPermissionObserver((state) {
     print('🔔 تغيير إذن الإشعارات: $state');
-  });
-
-  // إعداد معالج الإشعارات المستلمة في الخلفية
-  OneSignal.Notifications.addPermissionObserver((state) {
-    print('🔔 حالة إذن الإشعارات: $state');
   });
   
   // إعداد معالج استلام الإشعارات
@@ -456,8 +446,12 @@ Future<void> _savePlayerIdForExistingUsers() async {
       });
       
       print('✅ تم حفظ Player ID للمستخدم المسجل مسبقاً: $phone');
+      // إضافة tag الهاتف لاستهداف الإشعارات للعميل فقط (وليس الداشبورد)
+      OneSignal.User.addTagWithKey('phone', phone);
     } else {
       print('ℹ️ Player ID موجود مسبقاً');
+      // تحديث tag الهاتف دائماً
+      OneSignal.User.addTagWithKey('phone', phone);
     }
     
     // التحقق من وجود closestBranch للمستخدمين القدامى

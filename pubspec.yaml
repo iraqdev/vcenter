@@ -102,7 +102,7 @@ flutter:
     - assets/
     - assets/images/
     - assets/start2.mp4
-    - assets/order.mp4
+    - assets/order.MP4
     - startscreen.mp4
 
   # An image asset can refer to one or more resolution-specific "variants", see

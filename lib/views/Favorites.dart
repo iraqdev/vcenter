@@ -197,7 +197,6 @@ class Favorites extends StatelessWidget {
             Container(
               width: 36,
               height: 36,
-              padding: EdgeInsets.all(4),
               decoration: BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
@@ -209,13 +208,12 @@ class Favorites extends StatelessWidget {
                   ),
                 ],
               ),
-              child: ClipOval(
-                child: Image.asset(
-                  'assets/images/logo.png',
-                  fit: BoxFit.cover,
-                  width: 28,
-                  height: 28,
-                ),
+              clipBehavior: Clip.antiAlias,
+              child: Image.asset(
+                'assets/images/logo.png',
+                fit: BoxFit.cover,
+                width: 36,
+                height: 36,
               ),
             ),
             SizedBox(width: 8),

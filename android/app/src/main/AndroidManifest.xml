@@ -40,7 +40,7 @@
         <!-- OneSignal App ID -->
         <meta-data
             android:name="onesignal_app_id"
-            android:value="806c1a69-cd15-41b1-8f83-d8a8b3f218f6" />
+            android:value="8fbbffe4-d855-4384-b567-94354236f78a" />
         
         <!-- OneSignal Google Project Number -->
         <meta-data

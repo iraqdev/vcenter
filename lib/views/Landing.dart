@@ -492,7 +492,6 @@ class _LandingState extends State<Landing> with WidgetsBindingObserver {
         child: Container(
           width: 40,
           height: 40,
-          padding: EdgeInsets.all(6),
           decoration: BoxDecoration(
             color: Colors.white,
             shape: BoxShape.circle,
@@ -504,13 +503,12 @@ class _LandingState extends State<Landing> with WidgetsBindingObserver {
               ),
             ],
           ),
-          child: ClipOval(
-            child: Image.asset(
-              'assets/images/logo.png',
-              fit: BoxFit.cover,
-              width: 28,
-              height: 28,
-            ),
+          clipBehavior: Clip.antiAlias,
+          child: Image.asset(
+            'assets/images/logo.png',
+            fit: BoxFit.cover,
+            width: 40,
+            height: 40,
           ),
         ),
       ),

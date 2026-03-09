@@ -168,8 +168,9 @@ class RemoteServices {
       var list = snap.docs.map((d) => d.data()).toList();
       if (branch != null && branch.isNotEmpty && branch != 'المسؤول') {
         list = list.where((data) {
-          final pBranch = data['branch'];
-          return pBranch == branch || pBranch == null || (pBranch.toString().isEmpty);
+          final pBranch = data['branch']?.toString() ?? '';
+          // يظهر المنتج إذا: خاص بالفرع المحدد، أو "جميع الفروع"، أو بدون فرع محدد
+          return pBranch == branch || pBranch == 'all' || pBranch.isEmpty;
         }).toList();
       }
       
@@ -225,9 +226,9 @@ class RemoteServices {
         final productTitle = (data['title'] ?? '').toString().toLowerCase();
         final productDescription = (data['description'] ?? '').toString().toLowerCase();
         final searchQuery = q.toLowerCase();
-        final pBranch = data['branch'];
+        final pBranch = data['branch']?.toString() ?? '';
         final branchMatch = branch == null || branch.isEmpty || branch == 'المسؤول' ||
-            pBranch == branch || pBranch == null || (pBranch.toString().isEmpty);
+            pBranch == branch || pBranch == 'all' || pBranch.isEmpty;
         return (productTitle.contains(searchQuery) || productDescription.contains(searchQuery)) && branchMatch;
       }).toList();
       
@@ -272,8 +273,8 @@ class RemoteServices {
       var list = snap.docs.map((d) => d.data()).toList();
       if (branch != null && branch.isNotEmpty && branch != 'المسؤول') {
         list = list.where((data) {
-          final pBranch = data['branch'];
-          return pBranch == branch || pBranch == null || (pBranch.toString().isEmpty);
+          final pBranch = data['branch']?.toString() ?? '';
+          return pBranch == branch || pBranch == 'all' || pBranch.isEmpty;
         }).toList();
       }
       list.sort((a, b) {
@@ -326,11 +327,18 @@ class RemoteServices {
   ) async {
     try {
       final now = FieldValue.serverTimestamp();
-      
-      // تحديد الفرع الأقرب بناءً على near
-      String closestBranch = _determineClosestBranch(near);
-      print('📍 RemoteServices - تحديد الفرع الأقرب: $closestBranch من $near');
-      
+
+      // الخطوة 1: قراءة closestBranch المحفوظ في بيانات المستخدم (الأدق)
+      String closestBranch = await getUserClosestBranch() ?? '';
+
+      // الخطوة 2: إذا لم يكن محفوظاً، احسبه من نص near كاحتياط
+      if (closestBranch.isEmpty) {
+        closestBranch = _determineClosestBranch(near.toString());
+        print('⚠️ RemoteServices - لا يوجد closestBranch محفوظ، تم الحساب من near: $closestBranch');
+      } else {
+        print('✅ RemoteServices - تم قراءة closestBranch من Firebase: $closestBranch');
+      }
+
       final doc = await _db.collection('bills').add({
         'name': name,
         'phone': phone,
@@ -343,20 +351,21 @@ class RemoteServices {
         'nearpoint': nearpoint,
         'note': note,
         'near': near,
-        'closestBranch': closestBranch, // إضافة الفرع الأقرب
+        'closestBranch': closestBranch,
         'status': 0,
-        'orderstatus': 'قيد التحضير', // حالة الطلب الافتراضية
+        'orderstatus': 'قيد التحضير',
         'createdAt': now,
         'updatedAt': now,
       });
       await doc.update({'originalId': DateTime.now().millisecondsSinceEpoch});
       return '{"message":"Bill Added"}';
     } catch (e) {
+      print('❌ RemoteServices - خطأ في addBill: $e');
       return '{"message":"An unexpected error occurred","Status_code":500}';
     }
   }
-  
-  // تحديد الفرع الأقرب بناءً على near
+
+  // تحديد الفرع الأقرب بناءً على نص near (احتياطي فقط)
   static String _determineClosestBranch(String near) {
     if (near.contains('الغزالية') || near.contains('غزالية')) {
       return 'الغزالية';
@@ -365,7 +374,7 @@ class RemoteServices {
     } else if (near.contains('الاعظمية') || near.contains('اعظمية') || near.contains('الأعظمية')) {
       return 'الاعظمية';
     } else {
-      return 'العراق'; // الافتراضي
+      return 'العراق';
     }
   }
 

@@ -60,6 +60,8 @@ class Login_controller extends GetxController {
           });
           
           print('تم حفظ Player ID للمستخدم: $phone');
+          // إضافة tag الهاتف لاستهداف الإشعارات للعميل فقط (وليس الداشبورد)
+          OneSignal.User.addTagWithKey('phone', phone);
         }
       }
     } catch (e) {

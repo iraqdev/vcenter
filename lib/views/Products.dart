@@ -82,7 +82,6 @@ class _ProductsState extends State<Products> {
             width: 36,
             height: 36,
             child: Container(
-              padding: EdgeInsets.all(4),
               decoration: BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
@@ -94,13 +93,12 @@ class _ProductsState extends State<Products> {
                   ),
                 ],
               ),
-              child: ClipOval(
-                child: Image.asset(
-                  'assets/images/logo.png',
-                  fit: BoxFit.cover,
-                  width: 28,
-                  height: 28,
-                ),
+              clipBehavior: Clip.antiAlias,
+              child: Image.asset(
+                'assets/images/logo.png',
+                fit: BoxFit.cover,
+                width: 36,
+                height: 36,
               ),
             ),
           ),

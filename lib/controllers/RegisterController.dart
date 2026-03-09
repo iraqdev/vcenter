@@ -241,6 +241,8 @@ class RegisterController extends GetxController {
           });
           
           print('تم حفظ Player ID للمستخدم الجديد: $phone');
+          // إضافة tag الهاتف لاستهداف الإشعارات للعميل فقط
+          OneSignal.User.addTagWithKey('phone', phone);
         }
       }
     } catch (e) {
