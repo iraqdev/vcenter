@@ -61,6 +61,33 @@ class ApplePartsScreen extends StatelessWidget {
                 ],
               ),
             ),
+            SizedBox(height: Get.height * 0.02),
+            Container(
+              padding: EdgeInsets.all(Get.width * 0.04),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF7E6),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFFFD28A)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.warning_amber_rounded, color: Color(0xFFB26A00)),
+                  SizedBox(width: Get.width * 0.03),
+                  Expanded(
+                    child: Text(
+                      'تنبيه مهم: لا نستخدم قطع Apple الأصلية من الشركة الأم في خدمات الصيانة. استخدام خدماتنا قد يؤدي إلى إلغاء ضمان Apple للجهاز.',
+                      style: TextStyle(
+                        fontSize: Get.width * 0.036,
+                        height: 1.45,
+                        color: const Color(0xFF5A3A00),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             SizedBox(height: Get.height * 0.03),
             // زر عرض الفئات
             ElevatedButton.icon(

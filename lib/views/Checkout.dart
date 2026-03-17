@@ -82,71 +82,75 @@ class Checkout extends StatelessWidget {
                     padding: EdgeInsetsDirectional.only(
                       start: Get.height * 0.01,
                     ),
-                    child: Row(
-                      children: <Widget>[
-                        GestureDetector(
-                          onTap: () async {
-                            if (controller.currentStep == 1) {
-                              print(43);
-                              await controller.addBill(
-                                delivery_controller.phone.text,
-                                '',
-                                '',
-                                controller.price,
-                                controller.delivery,
-                                BoxCart,
-                                '',
-                                '',
-                                controller.near,
-                              );
-                              controls.onStepContinue!();
-                            } else {
-                              if (delivery_controller.name.text.isNotEmpty &&
-                                  delivery_controller.phone.text.isNotEmpty) {
-                                if (delivery_controller.isValidPhoneNumber(
-                                  delivery_controller.phone.text,
-                                )) {
-                                  controls.onStepContinue!();
-                                } else {
-                                  Get.snackbar('67'.tr, '91'.tr);
-                                }
-                              } else {
-                                Get.snackbar('67'.tr, '66'.tr);
-                              }
-                            }
-                          },
-                          child: Container(
-                            height: Get.height * 0.04,
-                            width: Get.height * 0.1,
-                            margin: EdgeInsets.all(2),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (controller.currentStep == 1) ...[
+                          Container(
+                            margin: EdgeInsets.only(bottom: Get.height * 0.01),
+                            padding: EdgeInsets.all(Get.width * 0.03),
                             decoration: BoxDecoration(
-                              borderRadius: BorderRadius.all(
-                                Radius.circular(15),
-                              ),
-                              color: Colors.deepPurple,
-                              border: Border.all(
-                                color: Colors.deepPurple,
-                                width: 0.1,
-                              ),
+                              color: const Color(0xFFFFF7E6),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: const Color(0xFFFFD28A)),
                             ),
-                            child: Center(
-                              child: Text(
-                                (controller.currentStep > 0)
-                                    ? '65'.tr
-                                    : '51'.tr,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: Get.height * 0.015,
-                                  fontWeight: FontWeight.bold,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(
+                                  Icons.warning_amber_rounded,
+                                  color: Color(0xFFB26A00),
+                                  size: 20,
                                 ),
-                              ),
+                                SizedBox(width: Get.width * 0.02),
+                                Expanded(
+                                  child: Text(
+                                    'تنبيه مهم: لا نستخدم قطع Apple الأصلية من الشركة الأم في خدمات الصيانة. استخدام خدماتنا قد يؤدي إلى إلغاء ضمان Apple للجهاز.',
+                                    style: TextStyle(
+                                      color: const Color(0xFF5A3A00),
+                                      fontWeight: FontWeight.w700,
+                                      height: 1.35,
+                                      fontSize: Get.width * 0.033,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ),
-                        SizedBox(width: Get.height * 0.015),
-                        (controller.currentStep == 1)
-                            ? GestureDetector(
-                              onTap: controls.onStepCancel,
+                        ],
+                        Row(
+                          children: <Widget>[
+                            GestureDetector(
+                              onTap: () async {
+                                if (controller.currentStep == 1) {
+                                  print(43);
+                                  await controller.addBill(
+                                    delivery_controller.phone.text,
+                                    '',
+                                    '',
+                                    controller.price,
+                                    controller.delivery,
+                                    BoxCart,
+                                    '',
+                                    '',
+                                    controller.near,
+                                  );
+                                  controls.onStepContinue!();
+                                } else {
+                                  if (delivery_controller.name.text.isNotEmpty &&
+                                      delivery_controller.phone.text.isNotEmpty) {
+                                    if (delivery_controller.isValidPhoneNumber(
+                                      delivery_controller.phone.text,
+                                    )) {
+                                      controls.onStepContinue!();
+                                    } else {
+                                      Get.snackbar('67'.tr, '91'.tr);
+                                    }
+                                  } else {
+                                    Get.snackbar('67'.tr, '66'.tr);
+                                  }
+                                }
+                              },
                               child: Container(
                                 height: Get.height * 0.04,
                                 width: Get.height * 0.1,
@@ -155,25 +159,59 @@ class Checkout extends StatelessWidget {
                                   borderRadius: BorderRadius.all(
                                     Radius.circular(15),
                                   ),
-                                  color: Colors.white12,
+                                  color: Colors.deepPurple,
                                   border: Border.all(
-                                    color: Colors.grey,
+                                    color: Colors.deepPurple,
                                     width: 0.1,
                                   ),
                                 ),
                                 child: Center(
                                   child: Text(
-                                    '52'.tr,
+                                    (controller.currentStep > 0)
+                                        ? '65'.tr
+                                        : '51'.tr,
                                     style: TextStyle(
-                                      color: Colors.grey,
+                                      color: Colors.white,
                                       fontSize: Get.height * 0.015,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 ),
                               ),
-                            )
-                            : SizedBox(),
+                            ),
+                            SizedBox(width: Get.height * 0.015),
+                            (controller.currentStep == 1)
+                                ? GestureDetector(
+                                  onTap: controls.onStepCancel,
+                                  child: Container(
+                                    height: Get.height * 0.04,
+                                    width: Get.height * 0.1,
+                                    margin: EdgeInsets.all(2),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.all(
+                                        Radius.circular(15),
+                                      ),
+                                      color: Colors.white12,
+                                      border: Border.all(
+                                        color: Colors.grey,
+                                        width: 0.1,
+                                      ),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        '52'.tr,
+                                        style: TextStyle(
+                                          color: Colors.grey,
+                                          fontSize: Get.height * 0.015,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                )
+                                : SizedBox(),
+                          ],
+                        ),
                       ],
                     ),
                   );
