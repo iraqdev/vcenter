@@ -5,36 +5,49 @@ class ProductService {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
   static const String _collection = 'products';
 
-  // جلب جميع المنتجات (مع فلترة حسب الفرع - المسؤول يعرض الكل)
+  // جلب جميع المنتجات (مع فلترة حسب الفرع - المسؤول فقط يعرض الكل)
   static Future<List<ProductModel>> getAllProducts({String? branch}) async {
     try {
-      Query query = _db.collection(_collection);
-      
-      // فلترة حسب الفرع (المسؤول يعرض كل المنتجات)
-      if (branch != null && branch.isNotEmpty && branch != 'المسؤول') {
+      List<ProductModel> products = [];
+
+      if (branch == null || branch.isEmpty || branch == 'المسؤول') {
+        // المسؤول: جلب كل المنتجات
+        final querySnapshot = await _db.collection(_collection).get();
+        products = querySnapshot.docs.map((doc) {
+          final data = doc.data();
+          final mapData = data is Map ? Map<String, dynamic>.from(data as Map) : <String, dynamic>{};
+          return ProductModel.fromFirestore(mapData, doc.id);
+        }).toList();
+      } else {
+        // فرع محدد: جلب منتجات الفرع + منتجات "جميع الفروع"
         print('📍 ProductService - فلترة المنتجات للفرع: $branch');
-        query = query.where('branch', isEqualTo: branch);
+
+        final results = await Future.wait([
+          // منتجات الفرع المحدد
+          _db.collection(_collection).where('branch', isEqualTo: branch).get(),
+          // منتجات "جميع الفروع"
+          _db.collection(_collection).where('branch', isEqualTo: 'all').get(),
+        ]);
+
+        final ids = <String>{};
+        for (final snapshot in results) {
+          for (final doc in snapshot.docs) {
+            if (ids.add(doc.id)) {
+              final data = doc.data();
+              final mapData = data is Map ? Map<String, dynamic>.from(data as Map) : <String, dynamic>{};
+              products.add(ProductModel.fromFirestore(mapData, doc.id));
+            }
+          }
+        }
       }
-      
-      final querySnapshot = await query.get();
-      
-      final products = querySnapshot.docs
-          .map((doc) {
-            final data = doc.data();
-            final mapData = data is Map
-                ? Map<String, dynamic>.from(data as Map)
-                : <String, dynamic>{};
-            return ProductModel.fromFirestore(mapData, doc.id);
-          })
-          .toList();
-      
+
       // ترتيب محلياً حسب تاريخ الإنشاء
       products.sort((a, b) {
         final aDate = a.createdAt ?? DateTime(0);
         final bDate = b.createdAt ?? DateTime(0);
         return bDate.compareTo(aDate);
       });
-      
+
       print('✅ ProductService - تم جلب ${products.length} منتج للفرع: ${branch ?? "الكل"}');
       return products;
     } catch (e) {
@@ -194,7 +207,7 @@ class ProductService {
     }
   }
 
-  // إحصائيات المنتجات (مع فلترة حسب الفرع - المسؤول يعرض الكل)
+  // إحصائيات المنتجات (مع فلترة حسب الفرع - المسؤول فقط يعرض الكل)
   static Future<Map<String, int>> getProductStats({String? branch}) async {
     try {
       Query query = _db.collection(_collection);

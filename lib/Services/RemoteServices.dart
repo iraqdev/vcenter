@@ -15,6 +15,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 class RemoteServices {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
   static const String _colUsers = 'users';
+
+  /// يبقي منتجاً واحداً لكل `Product.id` (نفس `originalId` في Firestore) لتفادي التكرار في الواجهة.
+  static List<Product> _uniqueProductsByAppId(List<Product> products) {
+    final byId = <int, Product>{};
+    for (final p in products) {
+      byId[p.id] = p;
+    }
+    return byId.values.toList();
+  }
   static const String _colProducts = 'products';
   static const String _colCategories = 'categories';
   static const String _colSubCategories = 'subCategories';
@@ -200,7 +209,7 @@ class RemoteServices {
         'branchMessages': data['branchMessages'] ?? {},
       }).toList());
       
-      final products = productFromJson(jsonStr);
+      final products = _uniqueProductsByAppId(productFromJson(jsonStr));
       print('✅ RemoteServices - تم تحويل ${products.length} منتج بنجاح');
       
       return products;
@@ -218,8 +227,7 @@ class RemoteServices {
       
       // جلب المنتجات ثم فلترة محلياً
       final snap = await _db.collection(_colProducts).where('active', isEqualTo: true).get();
-      final allProducts = snap.docs.map((d) => d.data()).toList();
-      
+
       // تصفية المنتجات محلياً للبحث في العنوان والوصف
       var filteredProducts = snap.docs.map((d) => d.data()).toList();
       filteredProducts = filteredProducts.where((data) {
@@ -247,7 +255,7 @@ class RemoteServices {
         'category': data['category'] ?? 0,
         'branchMessages': data['branchMessages'] ?? {},
       }).toList());
-      return productFromJson(jsonStr);
+      return _uniqueProductsByAppId(productFromJson(jsonStr));
     } catch (e) {
       return [];
     }
@@ -301,7 +309,7 @@ class RemoteServices {
         'category': data['category'] ?? 0,
         'branchMessages': data['branchMessages'] ?? {},
       }).toList());
-      return productFromJson(jsonStr);
+      return _uniqueProductsByAppId(productFromJson(jsonStr));
     } catch (e) {
       return [];
     }
@@ -357,7 +365,7 @@ class RemoteServices {
         'createdAt': now,
         'updatedAt': now,
       });
-      await doc.update({'originalId': DateTime.now().millisecondsSinceEpoch});
+      await doc.update({'originalId': DateTime.now().microsecondsSinceEpoch});
       return '{"message":"Bill Added"}';
     } catch (e) {
       print('❌ RemoteServices - خطأ في addBill: $e');

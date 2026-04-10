@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../utils/dashboard_dialog.dart';
 import '../controllers/notification_controller.dart';
 import '../models/notification_model.dart';
 import '../widgets/notification_card.dart';
@@ -184,7 +185,7 @@ class NotificationsManagementScreen extends StatelessWidget {
           ),
           SizedBox(height: 16),
 
-          // فلاتر سريعة
+          // فلاتر سريعة - النوع
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -195,9 +196,13 @@ class NotificationsManagementScreen extends StatelessWidget {
                 SizedBox(width: 8),
                 _buildFilterChip('مستخدم محدد', 'specific', 'type'),
                 SizedBox(width: 8),
+                _buildFilterChip('تحديث طلب 🚚', 'order_status_update', 'type'),
+                SizedBox(width: 8),
                 _buildFilterChip('عروض', 'offer', 'type'),
                 SizedBox(width: 8),
                 _buildFilterChip('ترويج', 'promotion', 'type'),
+                SizedBox(width: 8),
+                _buildFilterChip('إعلان', 'announcement', 'type'),
               ],
             ),
           ),
@@ -338,12 +343,12 @@ class NotificationsManagementScreen extends StatelessWidget {
         content: Text('هل أنت متأكد أنك تريد حذف هذا الإشعار؟'),
         actions: [
           TextButton(
-            onPressed: () => Get.back(),
+            onPressed: closeDashboardDialog,
             child: Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () async {
-              Get.back();
+              closeDashboardDialog();
               await notificationController.deleteNotification(notification.id);
             },
             style: ElevatedButton.styleFrom(

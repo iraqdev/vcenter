@@ -12,7 +12,10 @@ class FirebaseService {
       if (branch != null && branch.isNotEmpty && branch != 'المسؤول') {
         products = products.where((p) {
           final pBranch = p['branch'];
-          return pBranch == branch || pBranch == null || pBranch.toString().isEmpty;
+          return pBranch == branch ||
+              pBranch == 'all' ||
+              pBranch == null ||
+              pBranch.toString().isEmpty;
         }).toList();
       }
       print('✅ FirebaseService - تم جلب ${products.length} منتج');

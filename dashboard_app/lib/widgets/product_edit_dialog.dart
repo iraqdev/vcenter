@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:io';
 import '../models/product_model.dart';
 import '../controllers/category_controller.dart';
@@ -43,6 +44,7 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
   // متغيرات إدارة الصور
   List<File> _selectedImages = [];
   bool _isUploadingImages = false;
+  bool _isSavingProduct = false;
   
   final CategoryController categoryController = Get.find<CategoryController>();
   final SubCategoryController subCategoryController = Get.find<SubCategoryController>();
@@ -337,14 +339,26 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
                             borderRadius: BorderRadius.circular(10),
                           ),
                           prefixIcon: Icon(Icons.store),
+                          helperText: 'اختر "جميع الفروع" لعرض المنتج في كل الفروع',
                         ),
-                        items: ['الغزالية', 'الزعفرانية', 'الاعظمية', 'العراق']
-                            .map((String branch) {
-                          return DropdownMenuItem<String>(
-                            value: branch,
-                            child: Text(branch),
-                          );
-                        }).toList(),
+                        items: [
+                          DropdownMenuItem<String>(
+                            value: 'all',
+                            child: Row(
+                              children: [
+                                Icon(Icons.public, size: 18, color: Colors.blue),
+                                SizedBox(width: 8),
+                                Text('جميع الفروع', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+                              ],
+                            ),
+                          ),
+                          ...['الغزالية', 'الزعفرانية', 'الاعظمية', 'العراق'].map((String branch) {
+                            return DropdownMenuItem<String>(
+                              value: branch,
+                              child: Text(branch),
+                            );
+                          }),
+                        ],
                         onChanged: (String? value) {
                           setState(() {
                             _selectedBranch = value;
@@ -507,7 +521,7 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
                   SizedBox(width: 16),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: _isUploadingImages ? null : _saveProduct,
+                      onPressed: (_isUploadingImages || _isSavingProduct) ? null : _saveProduct,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Get.theme.primaryColor,
                         foregroundColor: Colors.white,
@@ -868,11 +882,15 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
   }
 
   void _saveProduct() async {
-    if (_formKey.currentState!.validate()) {
+    if (!_formKey.currentState!.validate()) return;
+    if (_isSavingProduct) return;
+    _isSavingProduct = true;
+    if (mounted) setState(() {});
+
+    try {
       String imageUrl = _imageUrlController.text.trim();
       List<String> images = [];
-      
-      // إذا تم اختيار صور جديدة، قم برفعها
+
       if (_selectedImages.isNotEmpty) {
         setState(() {
           _isUploadingImages = true;
@@ -881,12 +899,12 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
         try {
           final uploadedUrls = await ImageService.uploadMultipleProductImages(
             _selectedImages,
-            widget.product?.images, // الصور القديمة للحذف
+            widget.product?.images,
           );
-          
+
           if (uploadedUrls.isNotEmpty) {
             images = uploadedUrls;
-            imageUrl = uploadedUrls.first; // الصورة الرئيسية
+            imageUrl = uploadedUrls.first;
           } else {
             Get.snackbar(
               'خطأ',
@@ -894,9 +912,6 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
               backgroundColor: Colors.red,
               colorText: Colors.white,
             );
-            setState(() {
-              _isUploadingImages = false;
-            });
             return;
           }
         } catch (e) {
@@ -906,23 +921,22 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
             backgroundColor: Colors.red,
             colorText: Colors.white,
           );
-          setState(() {
-            _isUploadingImages = false;
-          });
           return;
+        } finally {
+          if (mounted) {
+            setState(() {
+              _isUploadingImages = false;
+            });
+          }
         }
-
-        setState(() {
-          _isUploadingImages = false;
-        });
       } else if (imageUrl.isNotEmpty) {
-        // إذا كان هناك رابط صورة واحد فقط
         images = [imageUrl];
       }
 
-      final newId = DateTime.now().millisecondsSinceEpoch.toString();
+      final docId = widget.product?.id ??
+          FirebaseFirestore.instance.collection('products').doc().id;
       final product = ProductModel(
-        id: widget.product?.id ?? newId,
+        id: docId,
         title: _nameController.text.trim(),
         description: _descriptionController.text.trim(),
         price: int.parse(_priceController.text),
@@ -930,7 +944,8 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
         images: images,
         category: int.parse(_categoryController.text),
         active: _isActive,
-        originalId: widget.product?.originalId ?? DateTime.now().millisecondsSinceEpoch,
+        originalId: widget.product?.originalId ??
+            DateTime.now().microsecondsSinceEpoch,
         createdAt: widget.product?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
         branch: _selectedBranch,
@@ -939,8 +954,11 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
         subCategory: _selectedSubCategory,
       );
 
+      Get.back();
       widget.onSave(product);
-      Get.back(); // إغلاق الدايلوغ بعد الحفظ
+    } finally {
+      _isSavingProduct = false;
+      if (mounted) setState(() {});
     }
   }
 }

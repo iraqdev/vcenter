@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../controllers/user_controller.dart';
+import '../controllers/branch_controller.dart';
 import '../models/user_model.dart';
 import '../widgets/new_user_card.dart';
 
@@ -9,6 +10,7 @@ class NewUsersReviewScreen extends StatelessWidget {
   NewUsersReviewScreen({super.key});
 
   final UserController userController = Get.find<UserController>();
+  final BranchController branchController = Get.find<BranchController>();
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +33,7 @@ class NewUsersReviewScreen extends StatelessWidget {
         actions: [
           IconButton(
             icon: Icon(Icons.refresh, color: Colors.white),
-            onPressed: () => userController.loadNewUsers(),
+            onPressed: () => userController.loadNewUsers(branch: branchController.selectedBranch.value),
           ),
         ],
       ),
@@ -56,7 +58,7 @@ class NewUsersReviewScreen extends StatelessWidget {
               }
 
               return RefreshIndicator(
-                onRefresh: () => userController.loadNewUsers(),
+                onRefresh: () => userController.loadNewUsers(branch: branchController.selectedBranch.value),
                 color: Colors.orange,
                 child: ListView.builder(
                   padding: EdgeInsets.all(16),
@@ -224,7 +226,7 @@ class NewUsersReviewScreen extends StatelessWidget {
           ),
           SizedBox(height: 20),
           ElevatedButton.icon(
-            onPressed: () => userController.loadNewUsers(),
+            onPressed: () => userController.loadNewUsers(branch: branchController.selectedBranch.value),
             icon: Icon(Icons.refresh),
             label: Text('تحديث'),
             style: ElevatedButton.styleFrom(

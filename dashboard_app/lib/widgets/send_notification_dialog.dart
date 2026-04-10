@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../utils/dashboard_dialog.dart';
 import '../controllers/notification_controller.dart';
 import '../controllers/user_controller.dart';
+import '../controllers/branch_controller.dart';
 
 class SendNotificationDialog extends StatefulWidget {
   const SendNotificationDialog({super.key});
@@ -13,6 +15,7 @@ class SendNotificationDialog extends StatefulWidget {
 class _SendNotificationDialogState extends State<SendNotificationDialog> {
   final NotificationController notificationController = Get.find<NotificationController>();
   final UserController userController = Get.find<UserController>();
+  final BranchController branchController = Get.find<BranchController>();
   
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
@@ -99,7 +102,7 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
                   ),
                   IconButton(
                     icon: Icon(Icons.close, color: Colors.grey[600]),
-                    onPressed: () => Get.back(),
+                    onPressed: closeDashboardDialog,
                   ),
                 ],
               ),
@@ -263,6 +266,40 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
 
                       SizedBox(height: 20),
 
+                      // اختيار الفرع (عند إرسال لجميع المستخدمين)
+                      if (_selectedTarget == 'all_users') ...[
+                        Text(
+                          'الفرع (اختياري)',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Obx(() => DropdownButtonFormField<String>(
+                          value: branchController.selectedBranch.value,
+                          decoration: InputDecoration(
+                            prefixIcon: Icon(Icons.store),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          items: BranchController.branches.map((branch) {
+                            return DropdownMenuItem(
+                              value: branch,
+                              child: Text(branch == 'المسؤول' ? 'جميع الفروع' : branch),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            if (value != null) {
+                              branchController.changeBranch(value);
+                            }
+                          },
+                        )),
+                        SizedBox(height: 20),
+                      ],
+
                       // رقم الهاتف (إذا كان المستهدف مستخدم محدد)
                       if (_selectedTarget == 'specific_user') ...[
                         Text(
@@ -412,7 +449,7 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
                 children: [
                   Expanded(
                     child: TextButton(
-                      onPressed: () => Get.back(),
+                      onPressed: closeDashboardDialog,
                       child: Text('إلغاء'),
                     ),
                   ),
@@ -445,7 +482,9 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
       Map<String, dynamic> result;
 
       if (_selectedTarget == 'all_users') {
-        // استخدام الدالة الجديدة لإرسال إشعار مخصص
+        final branch = branchController.selectedBranch.value == 'المسؤول' 
+            ? null 
+            : branchController.selectedBranch.value;
         result = await notificationController.sendCustomNotificationToAll(
           title: _titleController.text.trim(),
           message: _messageController.text.trim(),
@@ -455,6 +494,7 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
             'type': _selectedType,
             'timestamp': DateTime.now().millisecondsSinceEpoch,
           },
+          branch: branch,
         );
       } else {
         // استخدام الدالة الجديدة لإرسال إشعار مخصص للمستخدم المحدد
@@ -471,8 +511,10 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
         );
       }
 
-      if (result['success']) {
-        Get.back();
+      if (result['success'] == true || (result['sentCount'] ?? 0) > 0) {
+        if (mounted) {
+          closeDashboardDialog(afterFrame: true);
+        }
         Get.snackbar(
           'نجح',
           'تم إرسال الإشعار بنجاح',

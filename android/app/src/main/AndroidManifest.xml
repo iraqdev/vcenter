@@ -11,13 +11,13 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
     
-    <!-- صلاحيات OneSignal -->
+    <!-- صلاحيات الإشعارات -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     
     <application
         android:label="v center"
-        android:name="${applicationName}"
+        android:name=".VCenterApplication"
         android:icon="@mipmap/launcher_icon">
         <activity
             android:name=".MainActivity"
@@ -36,41 +36,9 @@
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyBgeRLX_sa19dBqj75ovixwgnr21ZV-xzU" />
-        
-        <!-- OneSignal App ID -->
         <meta-data
-            android:name="onesignal_app_id"
-            android:value="8fbbffe4-d855-4384-b567-94354236f78a" />
-        
-        <!-- OneSignal Google Project Number -->
-        <meta-data
-            android:name="onesignal_google_project_number"
-            android:value="414036126974" />
-        
-        <!-- OneSignal Notification Channel -->
-        <meta-data
-            android:name="onesignal_notification_channel_name"
-            android:value="VCenter Notifications" />
-        
-        <!-- OneSignal Notification Channel Description -->
-        <meta-data
-            android:name="onesignal_notification_channel_description"
-            android:value="إشعارات تطبيق VCenter" />
-        
-        <!-- OneSignal Notification Icon -->
-        <meta-data
-            android:name="onesignal_notification_icon"
-            android:resource="@mipmap/ic_launcher" />
-        
-        <!-- OneSignal Notification Large Icon -->
-        <meta-data
-            android:name="onesignal_notification_large_icon"
-            android:resource="@mipmap/ic_launcher" />
-        
-        <!-- OneSignal Notification Accent Color -->
-        <meta-data
-            android:name="onesignal_notification_accent_color"
-            android:value="FF9C27B0" />
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="high_importance_channel_v4" />
         
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

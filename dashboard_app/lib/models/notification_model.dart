@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 
 class NotificationModel {
   final String id;
@@ -10,6 +11,7 @@ class NotificationModel {
   final Map<String, dynamic>? data; // additional data
   final String? imageUrl;
   final String? actionUrl; // deep link or web URL
+  final String? branch; // فرع الإشعار (لعزل إشعارات الفروع)
   final DateTime scheduledAt; // when to send
   final DateTime createdAt;
   final String status; // 'draft', 'scheduled', 'sent', 'failed'
@@ -27,6 +29,7 @@ class NotificationModel {
     this.data,
     this.imageUrl,
     this.actionUrl,
+    this.branch,
     required this.scheduledAt,
     required this.createdAt,
     required this.status,
@@ -46,6 +49,7 @@ class NotificationModel {
       data: data['data'] != null ? Map<String, dynamic>.from(data['data']) : null,
       imageUrl: data['imageUrl'],
       actionUrl: data['actionUrl'],
+      branch: data['branch'],
       scheduledAt: (data['scheduledAt'] as Timestamp).toDate(),
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       status: data['status'] ?? 'draft',
@@ -65,6 +69,7 @@ class NotificationModel {
       'data': data,
       'imageUrl': imageUrl,
       'actionUrl': actionUrl,
+      'branch': branch,
       'scheduledAt': Timestamp.fromDate(scheduledAt),
       'createdAt': Timestamp.fromDate(createdAt),
       'status': status,
@@ -84,6 +89,7 @@ class NotificationModel {
     Map<String, dynamic>? data,
     String? imageUrl,
     String? actionUrl,
+    String? branch,
     DateTime? scheduledAt,
     DateTime? createdAt,
     String? status,
@@ -101,6 +107,7 @@ class NotificationModel {
       data: data ?? this.data,
       imageUrl: imageUrl ?? this.imageUrl,
       actionUrl: actionUrl ?? this.actionUrl,
+      branch: branch ?? this.branch,
       scheduledAt: scheduledAt ?? this.scheduledAt,
       createdAt: createdAt ?? this.createdAt,
       status: status ?? this.status,
@@ -128,8 +135,58 @@ class NotificationModel {
         return 'عرض خاص';
       case 'promotion':
         return 'ترويج';
+      case 'order_status_update':
+        return 'تحديث حالة طلب';
+      case 'new_order':
+        return 'طلب جديد';
+      case 'announcement':
+        return 'إعلان';
+      case 'reminder':
+        return 'تذكير';
       default:
         return 'عام';
+    }
+  }
+
+  IconData get typeIcon {
+    switch (type) {
+      case 'order_status_update':
+        return Icons.local_shipping;
+      case 'new_order':
+        return Icons.shopping_cart;
+      case 'offer':
+        return Icons.local_offer;
+      case 'promotion':
+        return Icons.campaign;
+      case 'announcement':
+        return Icons.announcement;
+      case 'reminder':
+        return Icons.alarm;
+      case 'specific':
+        return Icons.person;
+      case 'all':
+        return Icons.group;
+      default:
+        return Icons.notifications;
+    }
+  }
+
+  Color get typeColor {
+    switch (type) {
+      case 'order_status_update':
+        return Colors.blue;
+      case 'new_order':
+        return Colors.green;
+      case 'offer':
+        return Colors.orange;
+      case 'promotion':
+        return Colors.purple;
+      case 'announcement':
+        return Colors.teal;
+      case 'reminder':
+        return Colors.red;
+      default:
+        return Colors.grey;
     }
   }
 

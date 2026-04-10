@@ -121,10 +121,9 @@ class Home_controller extends GetxController {
 
       if (filters != null && filters.isNotEmpty) {
         print('Found ${filters.length} products from filterItems');
-        for (var product in filters) {
-          productsList.add(product);
-        }
-        print('Added ${productsList.length} products to productsList');
+        // استبدال القائمة وليس الإضافة — يمنع التكرار عند تداخل طلبي بحث متزامنين
+        productsList.value = filters;
+        print('Set productsList to ${productsList.length} products');
       } else {
         print('No products found from filterItems');
         productsList.clear();

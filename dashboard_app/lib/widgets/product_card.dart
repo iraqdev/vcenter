@@ -481,67 +481,55 @@ class ProductCard extends StatelessWidget {
               print('   - الرسائل الحالية: ${product.branchMessages}');
               
               Get.back();
-              
-              // حفظ الرسالة
-              Get.dialog(
-                Center(child: CircularProgressIndicator()),
-                barrierDismissible: false,
-              );
-              
-              try {
-                final updatedMessages = Map<String, String>.from(product.branchMessages ?? {});
-                updatedMessages[selectedBranch.value] = messageController.text.trim();
-                
-                print('📝 ProductCard - الرسائل المحدثة: $updatedMessages');
-                
-                final updatedProduct = product.copyWith(branchMessages: updatedMessages);
-                print('📦 ProductCard - المنتج المحدث: ${updatedProduct.branchMessages}');
-                
-                print('💾 ProductCard - بدء حفظ في قاعدة البيانات...');
-                
-                // إضافة timeout لتجنب التعليق
-                final success = await productController.updateProduct(updatedProduct)
-                    .timeout(
-                      Duration(seconds: 10),
-                      onTimeout: () {
-                        print('⏰ ProductCard - انتهت مهلة الحفظ');
-                        return false;
-                      },
+
+              // حفظ الرسالة بالخلفية بدون نافذة تحميل
+              final updatedMessages = Map<String, String>.from(product.branchMessages ?? {});
+              updatedMessages[selectedBranch.value] = messageController.text.trim();
+
+              print('📝 ProductCard - الرسائل المحدثة: $updatedMessages');
+
+              final updatedProduct = product.copyWith(branchMessages: updatedMessages);
+              print('📦 ProductCard - المنتج المحدث: ${updatedProduct.branchMessages}');
+              print('💾 ProductCard - بدء حفظ في قاعدة البيانات...');
+
+              productController
+                  .updateProduct(updatedProduct)
+                  .timeout(
+                    Duration(seconds: 10),
+                    onTimeout: () {
+                      print('⏰ ProductCard - انتهت مهلة الحفظ');
+                      return false;
+                    },
+                  )
+                  .then((success) {
+                    print('✅ ProductCard - نتيجة الحفظ: $success');
+                    if (success) {
+                      print('🎉 ProductCard - تم حفظ الرسالة بنجاح!');
+                      Get.snackbar(
+                        'نجح',
+                        'تم حفظ الرسالة بنجاح لفرع ${selectedBranch.value}',
+                        backgroundColor: Colors.green,
+                        colorText: Colors.white,
+                      );
+                    } else {
+                      print('❌ ProductCard - فشل في حفظ الرسالة');
+                      Get.snackbar(
+                        'خطأ',
+                        'فشل في حفظ الرسالة',
+                        backgroundColor: Colors.red,
+                        colorText: Colors.white,
+                      );
+                    }
+                  })
+                  .catchError((e) {
+                    print('❌ ProductCard - خطأ في حفظ الرسالة: $e');
+                    Get.snackbar(
+                      'خطأ',
+                      'فشل في حفظ الرسالة: ${e.toString()}',
+                      backgroundColor: Colors.red,
+                      colorText: Colors.white,
                     );
-                
-                print('✅ ProductCard - نتيجة الحفظ: $success');
-                
-                // إغلاق نافذة التحميل
-                Get.back();
-                
-                if (success) {
-                  print('🎉 ProductCard - تم حفظ الرسالة بنجاح!');
-                  Get.snackbar(
-                    'نجح',
-                    'تم حفظ الرسالة بنجاح لفرع ${selectedBranch.value}',
-                    backgroundColor: Colors.green,
-                    colorText: Colors.white,
-                  );
-                } else {
-                  print('❌ ProductCard - فشل في حفظ الرسالة');
-                  Get.snackbar(
-                    'خطأ',
-                    'فشل في حفظ الرسالة',
-                    backgroundColor: Colors.red,
-                    colorText: Colors.white,
-                  );
-                }
-              } catch (e) {
-                print('❌ ProductCard - خطأ في حفظ الرسالة: $e');
-                // إغلاق نافذة التحميل في حالة الخطأ
-                Get.back();
-                Get.snackbar(
-                  'خطأ',
-                  'فشل في حفظ الرسالة: ${e.toString()}',
-                  backgroundColor: Colors.red,
-                  colorText: Colors.white,
-                );
-              }
+                  });
             },
             child: Row(
               mainAxisSize: MainAxisSize.min,

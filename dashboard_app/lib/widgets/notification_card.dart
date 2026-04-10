@@ -87,23 +87,37 @@ class NotificationCard extends StatelessWidget {
                 // معلومات الإشعار
                 Row(
                   children: [
-                    Icon(Icons.category, size: 16, color: Colors.grey[600]),
-                    SizedBox(width: 8),
-                    Text(
-                      notification.typeDisplayName,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: notification.typeColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: notification.typeColor.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(notification.typeIcon, size: 13, color: notification.typeColor),
+                          SizedBox(width: 4),
+                          Text(
+                            notification.typeDisplayName,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: notification.typeColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    SizedBox(width: 16),
-                    Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
-                    SizedBox(width: 8),
+                    SizedBox(width: 12),
+                    Icon(Icons.access_time, size: 14, color: Colors.grey[500]),
+                    SizedBox(width: 4),
                     Text(
                       notification.formattedCreatedAt,
                       style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
+                        fontSize: 11,
+                        color: Colors.grey[500],
                       ),
                     ),
                   ],

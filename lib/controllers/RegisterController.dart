@@ -6,7 +6,7 @@ import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:onesignal_flutter/onesignal_flutter.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../Services/RemoteServices.dart';
 import '../views/MapPicker.dart';
@@ -217,13 +217,12 @@ class RegisterController extends GetxController {
     update();
   }
 
-  // دالة لحفظ OneSignal Player ID في Firebase
-  Future<void> _savePlayerIdToFirebase(String phone) async {
+  // دالة لحفظ FCM token في Firebase
+  Future<void> _saveFcmTokenToFirebase(String phone) async {
     try {
-      // الحصول على Player ID من OneSignal
-      final playerId = await OneSignal.User.getOnesignalId();
+      final fcmToken = await FirebaseMessaging.instance.getToken();
       
-      if (playerId != null && playerId.isNotEmpty) {
+      if (fcmToken != null && fcmToken.isNotEmpty) {
         // البحث عن المستخدم في Firebase باستخدام رقم الهاتف
         final usersSnapshot = await FirebaseFirestore.instance
             .collection('users')
@@ -231,22 +230,20 @@ class RegisterController extends GetxController {
             .get();
         
         if (usersSnapshot.docs.isNotEmpty) {
-          // تحديث المستخدم بإضافة playerId
+          // تحديث المستخدم بإضافة fcmToken
           await FirebaseFirestore.instance
               .collection('users')
               .doc(usersSnapshot.docs.first.id)
               .update({
-            'playerId': playerId,
+            'fcmToken': fcmToken,
             'updatedAt': FieldValue.serverTimestamp(),
           });
           
-          print('تم حفظ Player ID للمستخدم الجديد: $phone');
-          // إضافة tag الهاتف لاستهداف الإشعارات للعميل فقط
-          OneSignal.User.addTagWithKey('phone', phone);
+          print('تم حفظ FCM token للمستخدم الجديد: $phone');
         }
       }
     } catch (e) {
-      print('خطأ في حفظ Player ID: $e');
+      print('خطأ في حفظ FCM token: $e');
     }
   }
 
@@ -332,10 +329,9 @@ class RegisterController extends GetxController {
       var json_response = jsonDecode(response);
       print(json_response);
       if (json_response['message'] == "Register Successfully") {
-        // حفظ OneSignal Player ID في Firebase
-        // تأخير لحفظ Player ID (لضمان تهيئة OneSignal)
+        // حفظ FCM token في Firebase
         Future.delayed(Duration(seconds: 2), () {
-          _savePlayerIdToFirebase(phone_.text.trim());
+          _saveFcmTokenToFirebase(phone_.text.trim());
         });
         
         isnot_loading();

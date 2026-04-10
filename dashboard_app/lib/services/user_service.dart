@@ -10,8 +10,8 @@ class UserService {
     try {
       Query query = _db.collection(_collection);
       
-      // فلترة حسب الفرع (المسؤول والعراق يعرضان الكل)
-      if (branch != null && branch.isNotEmpty && branch != 'العراق' && branch != 'المسؤول') {
+      // فلترة حسب الفرع (المسؤول فقط يعرض الكل، العراق يعرض مستخدمي فرع العراق فقط)
+      if (branch != null && branch.isNotEmpty && branch != 'المسؤول') {
         print('📍 UserService - فلترة المستخدمين للفرع: $branch');
         query = query.where('closestBranch', isEqualTo: branch);
       }
@@ -40,14 +40,17 @@ class UserService {
     }
   }
 
-  // جلب المستخدمين الجدد غير المراجعين
-  static Future<List<UserModel>> getNewUsers() async {
+  // جلب المستخدمين الجدد غير المراجعين (مع فلترة حسب الفرع)
+  static Future<List<UserModel>> getNewUsers({String? branch}) async {
     try {
-      // استخدام استعلام أبسط لتجنب مشكلة الفهرس
-      final querySnapshot = await _db
-          .collection(_collection)
-          .where('isReviewed', isEqualTo: false)
-          .get();
+      Query query = _db.collection(_collection).where('isReviewed', isEqualTo: false);
+      
+      // فلترة حسب الفرع (المسؤول فقط يعرض الكل)
+      if (branch != null && branch.isNotEmpty && branch != 'المسؤول') {
+        query = query.where('closestBranch', isEqualTo: branch);
+      }
+      
+      final querySnapshot = await query.get();
       
       // ترتيب النتائج محلياً
       final users = querySnapshot.docs
@@ -126,18 +129,13 @@ class UserService {
     }
   }
 
-  // البحث في المستخدمين
-  static Future<List<UserModel>> searchUsers(String query) async {
+  // البحث في المستخدمين (مع فلترة حسب الفرع - جلب حسب الفرع ثم البحث محلياً)
+  static Future<List<UserModel>> searchUsers(String searchQuery, {String? branch}) async {
     try {
-      final querySnapshot = await _db
-          .collection(_collection)
-          .where('name', isGreaterThanOrEqualTo: query)
-          .where('name', isLessThan: query + 'z')
-          .get();
-      
-      return querySnapshot.docs
-          .map((doc) => UserModel.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
-          .toList();
+      final users = await getAllUsers(branch: branch);
+      if (searchQuery.isEmpty) return users;
+      final query = searchQuery.toLowerCase();
+      return users.where((u) => u.name.toLowerCase().contains(query)).toList();
     } catch (e) {
       print('خطأ في البحث: $e');
       return [];
@@ -151,8 +149,8 @@ class UserService {
       Query activeQuery = _db.collection(_collection).where('active', isEqualTo: true);
       Query newQuery = _db.collection(_collection).where('isReviewed', isEqualTo: false);
       
-      // فلترة حسب الفرع (المسؤول والعراق يعرضان الكل)
-      if (branch != null && branch.isNotEmpty && branch != 'العراق' && branch != 'المسؤول') {
+      // فلترة حسب الفرع (المسؤول فقط يعرض الكل)
+      if (branch != null && branch.isNotEmpty && branch != 'المسؤول') {
         allQuery = allQuery.where('closestBranch', isEqualTo: branch);
         activeQuery = activeQuery.where('closestBranch', isEqualTo: branch);
         newQuery = newQuery.where('closestBranch', isEqualTo: branch);

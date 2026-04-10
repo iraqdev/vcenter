@@ -21,13 +21,14 @@ class UserController extends GetxController {
     super.onInit();
     final branchController = Get.find<BranchController>();
     loadAllUsers(branch: branchController.selectedBranch.value);
-    loadNewUsers();
+    loadNewUsers(branch: branchController.selectedBranch.value);
     loadUserStats(branch: branchController.selectedBranch.value);
     
     // الاستماع لتغيير الفرع
     branchController.selectedBranch.listen((branch) {
       print('🔄 UserController - تم تغيير الفرع إلى: $branch');
       loadAllUsers(branch: branch);
+      loadNewUsers(branch: branch);
       loadUserStats(branch: branch);
     });
   }
@@ -50,13 +51,13 @@ class UserController extends GetxController {
     }
   }
 
-  // جلب المستخدمين الجدد (بدون فلترة - عرض الكل)
-  Future<void> loadNewUsers() async {
+  // جلب المستخدمين الجدد (مع فلترة حسب الفرع)
+  Future<void> loadNewUsers({String? branch}) async {
     isLoadingNewUsers.value = true;
     try {
-      final users = await UserService.getNewUsers();
+      final users = await UserService.getNewUsers(branch: branch);
       newUsers.assignAll(users);
-      print('✅ UserController - تم جلب ${users.length} حساب جديد');
+      print('✅ UserController - تم جلب ${users.length} حساب جديد للفرع: ${branch ?? "الكل"}');
     } catch (e) {
       // تم إزالة إشعار الخطأ
     } finally {
@@ -87,7 +88,7 @@ class UserController extends GetxController {
           allUsers[index] = allUsers[index].copyWith(isReviewed: true);
         }
         // تحديث الإحصائيات
-        loadUserStats();
+        loadUserStats(branch: Get.find<BranchController>().selectedBranch.value);
         // تم إزالة إشعار النجاح
       } else {
         // تم إزالة إشعار الخطأ
@@ -113,7 +114,7 @@ class UserController extends GetxController {
           newUsers[newIndex] = newUsers[newIndex].copyWith(isActive: isActive);
         }
         // تحديث الإحصائيات
-        loadUserStats();
+        loadUserStats(branch: Get.find<BranchController>().selectedBranch.value);
         // تم إزالة إشعار النجاح
       } else {
         // تم إزالة إشعار الخطأ
@@ -156,7 +157,7 @@ class UserController extends GetxController {
         allUsers.removeWhere((user) => user.id == userId);
         newUsers.removeWhere((user) => user.id == userId);
         // تحديث الإحصائيات
-        loadUserStats();
+        loadUserStats(branch: Get.find<BranchController>().selectedBranch.value);
         // تم إزالة إشعار النجاح
       } else {
         // تم إزالة إشعار الخطأ
@@ -166,17 +167,18 @@ class UserController extends GetxController {
     }
   }
 
-  // البحث في المستخدمين
+  // البحث في المستخدمين (مع فلترة حسب الفرع)
   Future<void> searchUsers(String query) async {
     searchQuery.value = query;
+    final branch = Get.find<BranchController>().selectedBranch.value;
     if (query.isEmpty) {
-      loadAllUsers();
+      loadAllUsers(branch: branch);
       return;
     }
 
     isLoading.value = true;
     try {
-      final users = await UserService.searchUsers(query);
+      final users = await UserService.searchUsers(query, branch: branch);
       allUsers.assignAll(users);
     } catch (e) {
       // تم إزالة إشعار الخطأ
@@ -187,10 +189,11 @@ class UserController extends GetxController {
 
   // إعادة تحميل البيانات
   Future<void> refreshData() async {
+    final branch = Get.find<BranchController>().selectedBranch.value;
     await Future.wait([
-      loadAllUsers(),
-      loadNewUsers(),
-      loadUserStats(),
+      loadAllUsers(branch: branch),
+      loadNewUsers(branch: branch),
+      loadUserStats(branch: branch),
     ]);
   }
 

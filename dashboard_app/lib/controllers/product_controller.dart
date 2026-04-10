@@ -16,6 +16,7 @@ class ProductController extends GetxController {
   // البحث والفلترة
   final RxString searchQuery = ''.obs;
   final RxInt selectedCategory = 0.obs;
+  final RxInt selectedSubCategory = 0.obs;
   final RxString sortBy = 'createdAt'.obs;
   final RxBool sortDescending = true.obs;
   
@@ -94,6 +95,14 @@ class ProductController extends GetxController {
   // فلترة حسب الفئة
   void filterByCategory(int category) {
     selectedCategory.value = category;
+    // عند تغيير الفئة الرئيسية نعيد تعيين الفئة الفرعية
+    selectedSubCategory.value = 0;
+    _applyFilters();
+  }
+
+  // فلترة حسب الفئة الفرعية
+  void filterBySubCategory(int subCategory) {
+    selectedSubCategory.value = subCategory;
     _applyFilters();
   }
 
@@ -121,6 +130,13 @@ class ProductController extends GetxController {
     if (selectedCategory.value != 0) {
       filtered = filtered.where((product) =>
         product.category == selectedCategory.value
+      ).toList();
+    }
+
+    // فلترة حسب الفئة الفرعية
+    if (selectedSubCategory.value != 0) {
+      filtered = filtered.where((product) =>
+        product.subCategory == selectedSubCategory.value
       ).toList();
     }
     
@@ -154,7 +170,8 @@ class ProductController extends GetxController {
       final success = await ProductService.addProduct(product);
       
       if (success) {
-        await fetchProducts();
+        final branch = Get.find<BranchController>().selectedBranch.value;
+        await fetchProducts(branch: branch);
         await fetchStats();
         Get.snackbar(
           'نجح',
@@ -196,8 +213,9 @@ class ProductController extends GetxController {
       if (success) {
         print('🔄 ProductController - تحديث البيانات المحلية...');
         // تحديث البيانات في الخلفية لتجنب التأخير
+        final branch = Get.find<BranchController>().selectedBranch.value;
         Future.microtask(() async {
-          await fetchProducts();
+          await fetchProducts(branch: branch);
           await fetchStats();
         });
         
@@ -229,7 +247,8 @@ class ProductController extends GetxController {
       final success = await ProductService.deleteProduct(productId);
       
       if (success) {
-        await fetchProducts();
+        final branch = Get.find<BranchController>().selectedBranch.value;
+        await fetchProducts(branch: branch);
         await fetchStats();
         Get.snackbar(
           'نجح',
@@ -259,7 +278,8 @@ class ProductController extends GetxController {
       final success = await ProductService.updateProductStatus(productId, active);
       
       if (success) {
-        await fetchProducts();
+        final branch = Get.find<BranchController>().selectedBranch.value;
+        await fetchProducts(branch: branch);
         await fetchStats();
         Get.snackbar(
           'نجح',
@@ -286,6 +306,7 @@ class ProductController extends GetxController {
   void clearFilters() {
     searchQuery.value = '';
     selectedCategory.value = 0;
+    selectedSubCategory.value = 0;
     sortBy.value = 'createdAt';
     sortDescending.value = true;
     _applyFilters();

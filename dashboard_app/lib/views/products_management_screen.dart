@@ -4,17 +4,53 @@ import '../controllers/product_controller.dart';
 import '../controllers/category_controller.dart';
 import '../controllers/notification_controller.dart';
 import '../controllers/branch_controller.dart';
+import '../controllers/subcategory_controller.dart';
 import '../models/product_model.dart';
 import '../widgets/product_card.dart';
 import '../widgets/product_edit_dialog.dart';
 
-class ProductsManagementScreen extends StatelessWidget {
-  ProductsManagementScreen({super.key});
+class ProductsManagementScreen extends StatefulWidget {
+  const ProductsManagementScreen({super.key});
+
+  @override
+  State<ProductsManagementScreen> createState() => _ProductsManagementScreenState();
+}
+
+class _ProductsManagementScreenState extends State<ProductsManagementScreen> {
 
   final ProductController productController = Get.find<ProductController>();
   final CategoryController categoryController = Get.find<CategoryController>();
   final NotificationController notificationController = Get.find<NotificationController>();
   final BranchController branchController = Get.find<BranchController>();
+  final SubCategoryController subCategoryController = Get.find<SubCategoryController>();
+  final TextEditingController _appBarSearchController = TextEditingController();
+  final FocusNode _appBarSearchFocusNode = FocusNode();
+  bool _isSearchMode = false;
+
+  @override
+  void dispose() {
+    _appBarSearchController.dispose();
+    _appBarSearchFocusNode.dispose();
+    super.dispose();
+  }
+
+  void _toggleSearchMode() {
+    setState(() {
+      _isSearchMode = !_isSearchMode;
+      if (!_isSearchMode) {
+        _appBarSearchController.clear();
+        productController.searchProducts('');
+      }
+    });
+
+    if (_isSearchMode) {
+      Future.delayed(Duration(milliseconds: 100), () {
+        if (mounted) {
+          _appBarSearchFocusNode.requestFocus();
+        }
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,32 +63,53 @@ class ProductsManagementScreen extends StatelessWidget {
         label: Text('إضافة منتج'),
       ),
       appBar: AppBar(
-        title: Text('إدارة المنتجات'),
+        title: _isSearchMode
+            ? TextField(
+                controller: _appBarSearchController,
+                focusNode: _appBarSearchFocusNode,
+                autofocus: true,
+                style: TextStyle(color: Colors.white, fontSize: 18),
+                decoration: InputDecoration(
+                  hintText: 'اكتب للبحث في المنتجات...',
+                  hintStyle: TextStyle(color: Colors.white70),
+                  border: InputBorder.none,
+                ),
+                onChanged: (value) => productController.searchProducts(value),
+              )
+            : Text('إدارة المنتجات'),
         backgroundColor: Get.theme.primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          // زر إرسال إشعار مخصص حسب الفرع
-          IconButton(
-            icon: Icon(Icons.notifications_active),
-            tooltip: 'إرسال إشعار مخصص',
-            onPressed: () => _showCustomNotificationDialog(),
-          ),
-          // زر البحث
-          IconButton(
-            icon: Icon(Icons.search),
-            onPressed: () => _showSearchDialog(),
-          ),
-          // زر الفلترة
-          IconButton(
-            icon: Icon(Icons.filter_list),
-            onPressed: () => _showFilterDialog(),
-          ),
-          // زر إضافة منتج جديد
-          IconButton(
-            icon: Icon(Icons.add),
-            onPressed: () => _showAddProductDialog(),
-          ),
+          if (_isSearchMode)
+            IconButton(
+              icon: Icon(Icons.close),
+              tooltip: 'إغلاق البحث',
+              onPressed: _toggleSearchMode,
+            )
+          else ...[
+            // زر إرسال إشعار مخصص حسب الفرع
+            IconButton(
+              icon: Icon(Icons.notifications_active),
+              tooltip: 'إرسال إشعار مخصص',
+              onPressed: () => _showCustomNotificationDialog(),
+            ),
+            // زر البحث
+            IconButton(
+              icon: Icon(Icons.search),
+              onPressed: _toggleSearchMode,
+            ),
+            // زر الفلترة
+            IconButton(
+              icon: Icon(Icons.filter_list),
+              onPressed: () => _showFilterDialog(),
+            ),
+            // زر إضافة منتج جديد
+            IconButton(
+              icon: Icon(Icons.add),
+              onPressed: () => _showAddProductDialog(),
+            ),
+          ],
         ],
       ),
       body: Column(
@@ -259,50 +316,85 @@ class ProductsManagementScreen extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // حقل البحث
-            Expanded(
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: 'البحث في المنتجات...',
-                  prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+            if (_isSearchMode)
+              // عند تفعيل البحث: يظهر حقل البحث فقط بعرض كامل
+              Expanded(
+                child: TextField(
+                  controller: _appBarSearchController,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: 'اكتب للبحث في المنتجات...',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  onChanged: (value) => productController.searchProducts(value),
                 ),
-                onChanged: (value) => productController.searchProducts(value),
+              )
+            else ...[
+              // في الوضع الطبيعي: زر بحث فقط
+              IconButton(
+                icon: Icon(Icons.search),
+                tooltip: 'بحث',
+                onPressed: _toggleSearchMode,
               ),
-            ),
-            SizedBox(width: 12),
-            
-            // فلتر الفئة
-            DropdownButton<int>(
-              value: productController.selectedCategory.value == 0 
-                  ? null 
-                  : productController.selectedCategory.value,
-              hint: Text('الفئة'),
-              items: [
-                DropdownMenuItem<int>(
-                  value: 0,
-                  child: Text('جميع الفئات'),
-                ),
-                ...categoryController.categories.map((category) =>
+              SizedBox(width: 12),
+
+              // فلتر الفئة
+              DropdownButton<int>(
+                value: productController.selectedCategory.value == 0 
+                    ? null 
+                    : productController.selectedCategory.value,
+                hint: Text('الفئة'),
+                items: [
                   DropdownMenuItem<int>(
-                    value: category.originalId,
-                    child: Text(category.title),
+                    value: 0,
+                    child: Text('جميع الفئات'),
                   ),
-                ),
-              ],
-              onChanged: (value) => productController.filterByCategory(value ?? 0),
-            ),
-            SizedBox(width: 12),
-            
-            // زر مسح الفلاتر
-            IconButton(
-              icon: Icon(Icons.clear),
-              onPressed: () => productController.clearFilters(),
-              tooltip: 'مسح الفلاتر',
-            ),
+                  ...categoryController.categories.map((category) =>
+                    DropdownMenuItem<int>(
+                      value: category.originalId,
+                      child: Text(category.title),
+                    ),
+                  ),
+                ],
+                onChanged: (value) => productController.filterByCategory(value ?? 0),
+              ),
+              SizedBox(width: 12),
+
+              // فلتر الفئة الفرعية
+              DropdownButton<int>(
+                value: productController.selectedSubCategory.value == 0
+                    ? null
+                    : productController.selectedSubCategory.value,
+                hint: Text('الفرعية'),
+                items: [
+                  DropdownMenuItem<int>(
+                    value: 0,
+                    child: Text('كل الفرعية'),
+                  ),
+                  ...subCategoryController
+                      .getSubCategoriesByCategory(productController.selectedCategory.value)
+                      .map((subCategory) => DropdownMenuItem<int>(
+                            value: subCategory.originalId,
+                            child: Text(subCategory.title),
+                          )),
+                ],
+                onChanged: productController.selectedCategory.value == 0
+                    ? null
+                    : (value) => productController.filterBySubCategory(value ?? 0),
+              ),
+              SizedBox(width: 12),
+              
+              // زر مسح الفلاتر
+              IconButton(
+                icon: Icon(Icons.clear),
+                onPressed: () => productController.clearFilters(),
+                tooltip: 'مسح الفلاتر',
+              ),
+            ],
           ],
         ),
       );
@@ -364,6 +456,30 @@ class ProductsManagementScreen extends StatelessWidget {
                 ),
               ],
               onChanged: (value) => productController.filterByCategory(value ?? 0),
+            ),
+            SizedBox(height: 16),
+
+            // فلتر الفئة الفرعية
+            DropdownButtonFormField<int>(
+              decoration: InputDecoration(labelText: 'الفئة الفرعية'),
+              value: productController.selectedSubCategory.value == 0
+                  ? null
+                  : productController.selectedSubCategory.value,
+              items: [
+                DropdownMenuItem<int>(
+                  value: 0,
+                  child: Text('كل الفئات الفرعية'),
+                ),
+                ...subCategoryController
+                    .getSubCategoriesByCategory(productController.selectedCategory.value)
+                    .map((subCategory) => DropdownMenuItem<int>(
+                          value: subCategory.originalId,
+                          child: Text(subCategory.title),
+                        )),
+              ],
+              onChanged: productController.selectedCategory.value == 0
+                  ? null
+                  : (value) => productController.filterBySubCategory(value ?? 0),
             ),
             SizedBox(height: 16),
             
@@ -573,7 +689,7 @@ class ProductsManagementScreen extends StatelessWidget {
                 await notificationController.sendToAllUsers(
                   title: 'إشعار من VCenter',
                   message: messageController.text.trim(),
-                  branch: selectedBranch.value == 'العراق' ? null : selectedBranch.value,
+                  branch: selectedBranch.value == 'المسؤول' ? null : selectedBranch.value,
                 );
                 
                 Get.back(); // إغلاق loading

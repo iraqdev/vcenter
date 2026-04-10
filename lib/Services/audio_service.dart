@@ -1,5 +1,4 @@
 import 'dart:math';
-import 'dart:typed_data';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/services.dart';
 
@@ -11,7 +10,6 @@ class AudioService {
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isInitialized = false;
 
-  // تهيئة خدمة الصوت
   Future<void> initialize() async {
     if (_isInitialized) return;
     try {
@@ -24,7 +22,6 @@ class AudioService {
     }
   }
 
-  // توليد ملف WAV كـ bytes مباشرة في الكود (بدون ملف خارجي)
   Uint8List _generateBeepWav({
     int sampleRate = 22050,
     double frequency = 880.0,
@@ -35,7 +32,6 @@ class AudioService {
     final List<int> pcmData = [];
 
     for (int i = 0; i < numSamples; i++) {
-      // Envelope: fade in + fade out لتجنب الطقطقة
       double envelope = 1.0;
       final fadeLen = (sampleRate * 0.04).round();
       if (i < fadeLen) envelope = i / fadeLen;
@@ -52,25 +48,22 @@ class AudioService {
     }
 
     final dataSize = pcmData.length;
-    final byteRate = sampleRate * 2; // mono * 2 bytes/sample
+    final byteRate = sampleRate * 2;
 
     final header = <int>[
-      // RIFF
       0x52, 0x49, 0x46, 0x46,
       (dataSize + 36) & 0xFF, ((dataSize + 36) >> 8) & 0xFF,
       ((dataSize + 36) >> 16) & 0xFF, ((dataSize + 36) >> 24) & 0xFF,
-      0x57, 0x41, 0x56, 0x45, // WAVE
-      // fmt chunk
+      0x57, 0x41, 0x56, 0x45,
       0x66, 0x6D, 0x74, 0x20, 0x10, 0x00, 0x00, 0x00,
-      0x01, 0x00, // PCM
-      0x01, 0x00, // mono
+      0x01, 0x00,
+      0x01, 0x00,
       sampleRate & 0xFF, (sampleRate >> 8) & 0xFF,
       (sampleRate >> 16) & 0xFF, (sampleRate >> 24) & 0xFF,
       byteRate & 0xFF, (byteRate >> 8) & 0xFF,
       (byteRate >> 16) & 0xFF, (byteRate >> 24) & 0xFF,
-      0x02, 0x00, // block align
-      0x10, 0x00, // 16-bit
-      // data chunk
+      0x02, 0x00,
+      0x10, 0x00,
       0x64, 0x61, 0x74, 0x61,
       dataSize & 0xFF, (dataSize >> 8) & 0xFF,
       (dataSize >> 16) & 0xFF, (dataSize >> 24) & 0xFF,
@@ -79,22 +72,18 @@ class AudioService {
     return Uint8List.fromList([...header, ...pcmData]);
   }
 
-  // تشغيل صوت إشعار الطلب الجديد
   Future<void> playNewOrderSound() async {
     try {
       if (!_isInitialized) await initialize();
 
       print('🔊 AudioService - تشغيل صوت إشعار الطلب الجديد');
 
-      // توليد صوتين متتاليين (نبضتان) كصوت إشعار واضح
       final beep1 = _generateBeepWav(frequency: 880.0, durationSeconds: 0.25);
       final beep2 = _generateBeepWav(frequency: 1100.0, durationSeconds: 0.25);
 
-      // تشغيل النبضة الأولى
       await _audioPlayer.play(BytesSource(beep1));
       await Future.delayed(Duration(milliseconds: 300));
 
-      // تشغيل النبضة الثانية
       await _audioPlayer.play(BytesSource(beep2));
 
       print('✅ AudioService - تم تشغيل الصوت بنجاح');
@@ -103,51 +92,6 @@ class AudioService {
       try {
         await SystemSound.play(SystemSoundType.alert);
       } catch (_) {}
-    }
-  }
-
-  // تشغيل صوت إشعار عام
-  Future<void> playNotificationSound() async {
-    try {
-      if (!_isInitialized) await initialize();
-
-      final beep = _generateBeepWav(frequency: 660.0, durationSeconds: 0.3);
-      await _audioPlayer.play(BytesSource(beep));
-
-      print('✅ AudioService - تم تشغيل صوت الإشعار العام');
-    } catch (e) {
-      print('❌ AudioService - خطأ في تشغيل صوت الإشعار العام: $e');
-      try {
-        await SystemSound.play(SystemSoundType.alert);
-      } catch (_) {}
-    }
-  }
-
-  // إيقاف الصوت
-  Future<void> stopSound() async {
-    try {
-      await _audioPlayer.stop();
-    } catch (e) {
-      print('❌ AudioService - خطأ في إيقاف الصوت: $e');
-    }
-  }
-
-  // تغيير مستوى الصوت
-  Future<void> setVolume(double volume) async {
-    try {
-      await _audioPlayer.setVolume(volume.clamp(0.0, 1.0));
-    } catch (e) {
-      print('❌ AudioService - خطأ في تغيير مستوى الصوت: $e');
-    }
-  }
-
-  // تنظيف الموارد
-  Future<void> dispose() async {
-    try {
-      await _audioPlayer.dispose();
-      _isInitialized = false;
-    } catch (e) {
-      print('❌ AudioService - خطأ في تنظيف الموارد: $e');
     }
   }
 }

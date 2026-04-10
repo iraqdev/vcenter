@@ -1,3 +1,5 @@
+﻿import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../models/order_model.dart';
@@ -32,6 +34,19 @@ class OrderController extends GetxController {
   // خدمة الصوت
   final AudioService _audioService = AudioService();
 
+  StreamSubscription? _ordersListener;
+
+  /// إزالة أي تكرار لنفس مستند Firestore (نفس [OrderModel.id]) في القائمة المعروضة.
+  List<OrderModel> _uniqueOrdersById(List<OrderModel> list) {
+    final byId = <String, OrderModel>{};
+    for (final o in list) {
+      byId[o.id] = o;
+    }
+    final out = byId.values.toList();
+    out.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return out;
+  }
+
   @override
   void onInit() {
     super.onInit();
@@ -43,13 +58,59 @@ class OrderController extends GetxController {
     final branchController = Get.find<BranchController>();
     fetchOrders(branch: branchController.selectedBranch.value);
     fetchStats();
+    _startOrdersListener(branchController.selectedBranch.value);
     
     // الاستماع لتغييرات الفرع
     branchController.selectedBranch.listen((branch) {
       print('🔄 OrderController - تم تغيير الفرع إلى: $branch');
       fetchOrders(branch: branch);
       fetchStats();
+      _startOrdersListener(branch);
     });
+  }
+
+  @override
+  void onClose() {
+    _ordersListener?.cancel();
+    super.onClose();
+  }
+
+  void _startOrdersListener(String branch) {
+    _ordersListener?.cancel();
+    _ordersListener = OrderService.listenToNewOrders(
+      branch: branch,
+      onNewOrder: (order, branchName) => _onNewOrderReceived(order, branchName),
+    );
+  }
+
+  /// طلب جديد من الاستماع الفوري: لا نضيف نفس [order.id] مرتين (كان يسبب تكراراً مع [fetchOrders]).
+  Future<void> _onNewOrderReceived(OrderModel order, String branchName) async {
+    if (processedOrderIds.contains(order.id)) return;
+    processedOrderIds.add(order.id);
+
+    newOrdersCount.value = newOrdersCount.value + 1;
+
+    await _audioService.playNewOrderSound();
+
+    Get.snackbar(
+      '$branchName لديك طلب جديد',
+      'تم استلام طلب جديد من ${order.name}',
+      backgroundColor: Colors.green,
+      colorText: Colors.white,
+      duration: const Duration(seconds: 4),
+      icon: const Icon(Icons.shopping_cart, color: Colors.white),
+      snackPosition: SnackPosition.TOP,
+      margin: const EdgeInsets.all(16),
+      borderRadius: 12,
+      isDismissible: true,
+      shouldIconPulse: true,
+    );
+
+    if (!orders.any((o) => o.id == order.id)) {
+      orders.insert(0, order);
+      _applyFilters();
+    }
+    fetchStats();
   }
 
   // جلب جميع الطلبات
@@ -60,7 +121,8 @@ class OrderController extends GetxController {
       
       print('🔄 OrderController - جلب الطلبات للفرع: ${branch ?? "الكل"}');
       
-      final fetchedOrders = await OrderService.getAllOrders(branch: branch);
+      final raw = await OrderService.getAllOrders(branch: branch);
+      final fetchedOrders = _uniqueOrdersById(raw);
       orders.value = fetchedOrders;
       filteredOrders.value = fetchedOrders;
       
@@ -89,7 +151,8 @@ class OrderController extends GetxController {
       } else {
         fetchedOrders = await OrderService.getOrdersByStatus(status, branch: branch);
       }
-      
+
+      fetchedOrders = _uniqueOrdersById(fetchedOrders);
       orders.value = fetchedOrders;
       filteredOrders.value = fetchedOrders;
       

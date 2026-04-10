@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../utils/dashboard_dialog.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/slider_model.dart';
@@ -513,7 +514,7 @@ class _SliderEditDialogState extends State<SliderEditDialog> {
       children: [
         Expanded(
           child: OutlinedButton(
-            onPressed: _isUploading ? null : () => Navigator.of(context).pop(),
+            onPressed: _isUploading ? null : () => closeDashboardDialog(),
             style: OutlinedButton.styleFrom(
               padding: EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(

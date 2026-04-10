@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/order_model.dart';
 
@@ -79,6 +81,19 @@ class OrderService {
     }
   }
 
+  // جلب طلب واحد بالمعرف
+  static Future<OrderModel?> getOrderById(String orderId) async {
+    try {
+      final doc = await _db.collection(_collection).doc(orderId).get();
+      if (!doc.exists) return null;
+      final data = doc.data() as Map<String, dynamic>;
+      return OrderModel.fromFirestore(data, doc.id);
+    } catch (e) {
+      print('❌ OrderService - خطأ في جلب الطلب: $e');
+      return null;
+    }
+  }
+
   // جلب طلبات المستخدم
   static Future<List<OrderModel>> getUserOrders(String userPhone) async {
     try {
@@ -94,20 +109,6 @@ class OrderService {
     } catch (e) {
       print('خطأ في جلب طلبات المستخدم: $e');
       return [];
-    }
-  }
-
-  // جلب طلب واحد
-  static Future<OrderModel?> getOrderById(String orderId) async {
-    try {
-      final doc = await _db.collection(_collection).doc(orderId).get();
-      if (doc.exists) {
-        return OrderModel.fromFirestore(doc.data()!, doc.id);
-      }
-      return null;
-    } catch (e) {
-      print('خطأ في جلب الطلب: $e');
-      return null;
     }
   }
 
@@ -292,5 +293,45 @@ class OrderService {
   // جلب الطلبات الملغية
   static Future<List<OrderModel>> getCancelledOrders({String? branch}) async {
     return getOrdersByStatus(3, branch: branch);
+  }
+
+  /// الاستماع الفوري للطلبات الجديدة - يُستدعى عند إضافة طلب جديد في Firebase
+  /// يعيد StreamSubscription يمكن إلغاؤه عند تغيير الفرع
+  static StreamSubscription<QuerySnapshot>? listenToNewOrders({
+    required String branch,
+    required void Function(OrderModel order, String branchName) onNewOrder,
+  }) {
+    Query query = _db.collection(_collection);
+    
+    // فلترة حسب الفرع (المسؤول يستمع لكل الطلبات)
+    if (branch.isNotEmpty && branch != 'المسؤول') {
+      query = query.where('closestBranch', isEqualTo: branch);
+    }
+    
+    DateTime? connectedAt;
+    return query.snapshots().listen((snapshot) {
+      // اللقطة الأولى: نحفظ وقت الاتصال فقط ولا نستدعي onNewOrder
+      if (connectedAt == null) {
+        connectedAt = DateTime.now();
+        return;
+      }
+      for (var change in snapshot.docChanges) {
+        if (change.type == DocumentChangeType.added) {
+          try {
+            final data = change.doc.data() as Map<String, dynamic>?;
+            if (data == null) continue;
+            
+            final status = data['status'];
+            if (status != 0 && status != '0') continue; // جاري التجهيز فقط
+            
+            final order = OrderModel.fromFirestore(data, change.doc.id);
+            final branchName = order.closestBranch ?? branch;
+            onNewOrder(order, branchName);
+          } catch (e) {
+            print('❌ OrderService - خطأ في معالجة طلب جديد: $e');
+          }
+        }
+      }
+    });
   }
 }

@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../controllers/NotificationController.dart';
+import '../controllers/app_notification_controller.dart';
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final NotificationController notificationController = Get.put(NotificationController());
+    final AppNotificationController notificationController = Get.find<AppNotificationController>();
 
     return Scaffold(
       appBar: AppBar(
@@ -39,14 +39,6 @@ class NotificationsScreen extends StatelessWidget {
         ],
       ),
       body: Obx(() {
-        if (notificationController.isLoading.value) {
-          return Center(
-            child: CircularProgressIndicator(
-              color: Colors.deepPurple,
-            ),
-          );
-        }
-
         if (notificationController.notifications.isEmpty) {
           return Center(
             child: Column(
@@ -67,22 +59,10 @@ class NotificationsScreen extends StatelessWidget {
                 ),
                 SizedBox(height: 10),
                 Text(
-                  'ستظهر الإشعارات هنا عند استلامها',
+                  'ستظهر هنا إشعارات FCM عند استلامها',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey[500],
-                  ),
-                ),
-                SizedBox(height: 30),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    notificationController.refreshNotifications();
-                  },
-                  icon: Icon(Icons.refresh),
-                  label: Text('تحديث الإشعارات'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurple,
-                    foregroundColor: Colors.white,
                   ),
                 ),
               ],

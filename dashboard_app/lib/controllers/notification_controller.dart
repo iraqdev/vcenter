@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import '../models/notification_model.dart';
 import '../services/notification_service.dart';
+import 'branch_controller.dart';
 
 class NotificationController extends GetxController {
   final RxList<NotificationModel> notifications = <NotificationModel>[].obs;
@@ -25,6 +26,9 @@ class NotificationController extends GetxController {
     super.onInit();
     fetchNotifications();
     fetchStats();
+    Get.find<BranchController>().selectedBranch.listen((_) {
+      _applyFilters();
+    });
   }
 
   // جلب جميع الإشعارات
@@ -107,6 +111,16 @@ class NotificationController extends GetxController {
   // تطبيق الفلاتر
   void _applyFilters() {
     List<NotificationModel> filtered = List.from(notifications);
+    final branchController = Get.find<BranchController>();
+    final currentBranch = branchController.selectedBranch.value;
+
+    // عزل إشعارات الطلبات الجديدة حسب الفرع الحالي (والمسؤول يرى الكل)
+    if (currentBranch != 'المسؤول') {
+      filtered = filtered.where((notification) {
+        if (notification.type != 'new_order') return true;
+        return notification.branch == currentBranch;
+      }).toList();
+    }
 
     // فلترة حسب البحث
     if (searchQuery.value.isNotEmpty) {
@@ -126,6 +140,9 @@ class NotificationController extends GetxController {
         filtered = filtered.where((notification) => notification.type == selectedType.value).toList();
       }
     }
+
+    // فلترة إشعارات الطلبات (order_status_update)
+    // يتم عبر الفلتر العام أعلاه تلقائياً
 
     // فلترة حسب الحالة
     if (selectedStatus.value != 'all') {
@@ -363,13 +380,14 @@ class NotificationController extends GetxController {
     }
   }
 
-  // إرسال إشعار مخصص لجميع المستخدمين
+  // إرسال إشعار مخصص لجميع المستخدمين (مع فلترة الفرع)
   Future<Map<String, dynamic>> sendCustomNotificationToAll({
     required String title,
     required String message,
     String? imageUrl,
     String? actionUrl,
     Map<String, dynamic>? data,
+    String? branch,
   }) async {
     try {
       isLoading.value = true;
@@ -381,7 +399,13 @@ class NotificationController extends GetxController {
         imageUrl: imageUrl,
         actionUrl: actionUrl,
         data: data,
+        branch: branch,
       );
+      
+      if (result['success'] == true) {
+        await fetchNotifications();
+        await fetchStats();
+      }
       
       return result;
       
@@ -418,6 +442,11 @@ class NotificationController extends GetxController {
         actionUrl: actionUrl,
         data: data,
       );
+      
+      if (result['success']) {
+        await fetchNotifications();
+        await fetchStats();
+      }
       
       return result;
       

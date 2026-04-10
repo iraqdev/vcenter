@@ -20,7 +20,7 @@ import 'package:ecommerce/views/OrdersScreen.dart';
 import 'package:ecommerce/views/NotificationsScreen.dart';
 import 'package:ecommerce/controllers/app_notification_controller.dart';
 import 'package:ecommerce/controllers/ProfileController.dart';
-import 'package:onesignal_flutter/onesignal_flutter.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 
 class Landing extends StatefulWidget {
@@ -54,8 +54,8 @@ class _LandingState extends State<Landing> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // حفظ Player ID عند فتح التطبيق
-    _savePlayerIdOnAppOpen();
+    // حفظ FCM token عند فتح التطبيق
+    _saveFcmTokenOnAppOpen();
     // فحص حالة المستخدم الحالي (وحظره تلقائياً إذا تم من الداش)
     _checkUserStatus();
     // تهيئة متحكم الإشعارات
@@ -77,16 +77,15 @@ class _LandingState extends State<Landing> with WidgetsBindingObserver {
     }
   }
 
-  // دالة لحفظ Player ID عند فتح التطبيق
-  Future<void> _savePlayerIdOnAppOpen() async {
+  // دالة لحفظ FCM token عند فتح التطبيق
+  Future<void> _saveFcmTokenOnAppOpen() async {
     try {
       // التحقق من وجود مستخدم مسجل دخول
       final phone = sharedPreferences?.getString('phone');
       if (phone == null || phone.isEmpty) return;
       
-      // الحصول على Player ID من OneSignal
-      final playerId = await OneSignal.User.getOnesignalId();
-      if (playerId == null || playerId.isEmpty) return;
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+      if (fcmToken == null || fcmToken.isEmpty) return;
       
       // البحث عن المستخدم في Firebase
       final usersSnapshot = await FirebaseFirestore.instance
@@ -98,22 +97,17 @@ class _LandingState extends State<Landing> with WidgetsBindingObserver {
         final userDoc = usersSnapshot.docs.first;
         final userData = userDoc.data();
         
-        // التحقق من وجود playerId مسبقاً
-        if (userData['playerId'] == null || userData['playerId'].toString().isEmpty) {
-          // تحديث المستخدم بإضافة playerId
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(userDoc.id)
-              .update({
-            'playerId': playerId,
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-          
-          print('تم حفظ Player ID عند فتح التطبيق: $phone');
-        }
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userDoc.id)
+            .update({
+          'fcmToken': fcmToken,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        print('تم حفظ FCM token عند فتح التطبيق: $phone');
       }
     } catch (e) {
-      print('خطأ في حفظ Player ID عند فتح التطبيق: $e');
+      print('خطأ في حفظ FCM token عند فتح التطبيق: $e');
     }
   }
 

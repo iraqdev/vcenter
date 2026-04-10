@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../utils/dashboard_dialog.dart';
 import '../models/order_model.dart';
 import '../controllers/order_controller.dart';
 
@@ -19,6 +20,7 @@ class _OrderStatusDialogState extends State<OrderStatusDialog> {
   late int selectedStatus;
   final OrderController orderController = Get.find<OrderController>();
   final TextEditingController deliveryTimeController = TextEditingController();
+  bool _isUpdating = false;
 
   final List<Map<String, dynamic>> statusOptions = [
     {
@@ -97,7 +99,7 @@ class _OrderStatusDialogState extends State<OrderStatusDialog> {
                   ),
                 ),
                 IconButton(
-                  onPressed: () => Get.back(),
+                  onPressed: _isUpdating ? null : () => closeDashboardDialog(),
                   icon: Icon(Icons.close),
                 ),
               ],
@@ -294,7 +296,7 @@ class _OrderStatusDialogState extends State<OrderStatusDialog> {
                 SizedBox(
                   width: 120,
                   child: OutlinedButton(
-                    onPressed: () => Get.back(),
+                    onPressed: _isUpdating ? null : () => closeDashboardDialog(),
                     style: OutlinedButton.styleFrom(
                       padding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                       shape: RoundedRectangleBorder(
@@ -316,11 +318,11 @@ class _OrderStatusDialogState extends State<OrderStatusDialog> {
                 SizedBox(
                   width: 140,
                   child: ElevatedButton(
-                    onPressed: selectedStatus != widget.order.status
+                    onPressed: (selectedStatus != widget.order.status && !_isUpdating)
                         ? _updateOrderStatus
                         : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: selectedStatus != widget.order.status 
+                      backgroundColor: (selectedStatus != widget.order.status && !_isUpdating)
                           ? Colors.blue[600] 
                           : Colors.grey[400],
                       foregroundColor: Colors.white,
@@ -328,15 +330,24 @@ class _OrderStatusDialogState extends State<OrderStatusDialog> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      elevation: selectedStatus != widget.order.status ? 2 : 0,
+                      elevation: (selectedStatus != widget.order.status && !_isUpdating) ? 2 : 0,
                     ),
-                    child: Text(
-                      'تحديث الحالة',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    child: _isUpdating
+                        ? SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : Text(
+                            'تحديث الحالة',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                   ),
                 ),
               ],
@@ -438,6 +449,10 @@ class _OrderStatusDialogState extends State<OrderStatusDialog> {
   }
 
   void _updateOrderStatus() async {
+    if (_isUpdating) return;
+    
+    setState(() => _isUpdating = true);
+    
     try {
       print('OrderStatusDialog: بدء تحديث حالة الطلب');
       print('OrderStatusDialog: معرف الطلب: ${widget.order.id}');
@@ -451,6 +466,7 @@ class _OrderStatusDialogState extends State<OrderStatusDialog> {
       if (selectedStatus == 1) {
         deliveryTime = deliveryTimeController.text.trim();
         if (deliveryTime.isEmpty) {
+          if (mounted) setState(() => _isUpdating = false);
           Get.snackbar(
             'خطأ',
             'الرجاء إدخال وقت التوصيل المتوقع',
@@ -470,8 +486,10 @@ class _OrderStatusDialogState extends State<OrderStatusDialog> {
       
       print('OrderStatusDialog: نتيجة التحديث: $success');
       
+      if (!mounted) return;
+      
       if (success) {
-        Get.back();
+        closeDashboardDialog(afterFrame: true);
         Get.snackbar(
           'نجح',
           'تم تحديث حالة الطلب بنجاح',
@@ -479,6 +497,7 @@ class _OrderStatusDialogState extends State<OrderStatusDialog> {
           colorText: Colors.white,
         );
       } else {
+        setState(() => _isUpdating = false);
         Get.snackbar(
           'خطأ',
           'فشل في تحديث حالة الطلب',
@@ -488,6 +507,7 @@ class _OrderStatusDialogState extends State<OrderStatusDialog> {
       }
     } catch (e) {
       print('OrderStatusDialog: خطأ في تحديث حالة الطلب: $e');
+      if (mounted) setState(() => _isUpdating = false);
       Get.snackbar(
         'خطأ',
         'فشل في تحديث حالة الطلب: $e',

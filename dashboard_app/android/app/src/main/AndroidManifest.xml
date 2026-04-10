@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- صلاحيات OneSignal -->
+    <!-- صلاحيات الإشعارات -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -36,16 +36,9 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <!-- OneSignal App ID -->
         <meta-data
-            android:name="onesignal_app_id"
-            android:value="806c1a69-cd15-41b1-8f83-d8a8b3f218f6" />
-        
-        <!-- OneSignal Google Project Number -->
-        <meta-data
-            android:name="onesignal_google_project_number"
-            android:value="414036126974" />
-        
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="high_importance_channel_v4" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

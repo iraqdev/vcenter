@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:onesignal_flutter/onesignal_flutter.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'firebase_options.dart';
 import 'views/dashboard_home_screen.dart';
 import 'views/products_management_screen.dart';
@@ -19,6 +20,17 @@ import 'controllers/order_controller.dart';
 import 'controllers/notification_controller.dart';
 import 'controllers/branch_controller.dart';
 import 'controllers/slider_controller.dart';
+import 'services/audio_service.dart';
+
+final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+const AndroidNotificationChannel _highImportanceChannel = AndroidNotificationChannel(
+  'high_importance_channel_v4',
+  'إشعارات الداشبورد',
+  description: 'تنبيهات مهمة مع صوت',
+  importance: Importance.max,
+  playSound: true,
+  sound: RawResourceAndroidNotificationSound('vcenter_notify'),
+);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,17 +40,52 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // تهيئة OneSignal
-  OneSignal.initialize('806c1a69-cd15-41b1-8f83-d8a8b3f218f6');
-  
-  // طلب إذن الإشعارات
-  OneSignal.Notifications.requestPermission(true);
-  
-  // إعداد OneSignal للداشبورد
-  OneSignal.User.pushSubscription.optIn();
-  
-  // اختبار OneSignal في الداشبورد
-  _testOneSignalDashboard();
+  // تهيئة FCM للداشبورد
+  await FirebaseMessaging.instance.requestPermission(alert: true, badge: true, sound: true);
+  await FirebaseMessaging.instance.setAutoInitEnabled(true);
+  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+  const androidInit = AndroidInitializationSettings('@mipmap/launcher_icon');
+  const initSettings = InitializationSettings(android: androidInit);
+  await _localNotifications.initialize(initSettings);
+  await _localNotifications
+      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(_highImportanceChannel);
+
+  FirebaseMessaging.onMessage.listen((message) {
+    final title = message.notification?.title ?? 'إشعار جديد';
+    final body = message.notification?.body ?? '';
+    AudioService().playNewOrderSound();
+    _localNotifications.show(
+      message.messageId.hashCode,
+      title,
+      body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _highImportanceChannel.id,
+          _highImportanceChannel.name,
+          channelDescription: _highImportanceChannel.description,
+          importance: Importance.max,
+          priority: Priority.high,
+          playSound: true,
+          sound: const RawResourceAndroidNotificationSound('vcenter_notify'),
+          enableVibration: true,
+          icon: '@mipmap/launcher_icon',
+        ),
+      ),
+    );
+    Get.snackbar(
+      title,
+      body,
+      backgroundColor: Colors.green,
+      colorText: Colors.white,
+      snackPosition: SnackPosition.TOP,
+      duration: Duration(seconds: 4),
+    );
+  });
 
   // تهيئة المتحكمات
   Get.put(BranchController()); // يجب أن يكون أول متحكم لأن OrderController يعتمد عليه
@@ -98,31 +145,5 @@ class DashboardApp extends StatelessWidget {
           GetPage(name: '/new_users', page: () => NewUsersReviewScreen()),
         ],
     );
-  }
-}
-
-// دالة لاختبار OneSignal في الداشبورد
-Future<void> _testOneSignalDashboard() async {
-  try {
-    // الحصول على Player ID
-    final playerId = await OneSignal.User.getOnesignalId();
-    print('Dashboard OneSignal Player ID: $playerId');
-    
-    // التحقق من حالة الإذن
-    final permission = await OneSignal.Notifications.permission;
-    print('Dashboard OneSignal Permission: $permission');
-    
-    // التحقق من حالة الاشتراك
-    final subscribed = await OneSignal.User.pushSubscription.optedIn;
-    print('Dashboard OneSignal Subscribed: $subscribed');
-    
-    if (playerId != null && playerId.isNotEmpty) {
-      print('✅ Dashboard OneSignal جاهز للعمل!');
-    } else {
-      print('❌ Dashboard OneSignal غير جاهز');
-    }
-    
-  } catch (e) {
-    print('خطأ في اختبار Dashboard OneSignal: $e');
   }
 }

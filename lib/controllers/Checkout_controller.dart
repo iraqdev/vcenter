@@ -9,6 +9,7 @@ import 'package:ecommerce/main.dart';
 
 class Checkout_controller extends GetxController {
   var isPay = false.obs;
+  var isSubmittingOrder = false.obs;
   int price = 0;
   int delivery_Baghdad = 4000;
   int delivery_another = 4000;
@@ -47,6 +48,13 @@ class Checkout_controller extends GetxController {
 
   Future<bool> addBill(phone, city, address, price, delivery, items, nearpoint,
       note, near) async {
+    // منع إرسال نفس الطلب أكثر من مرة عند الضغط المتكرر
+    if (isSubmittingOrder.value) {
+      return false;
+    }
+    isSubmittingOrder(true);
+    update();
+
     var list = <Map<String, dynamic>>[];
     for (int x = 0; x < BoxCart.length; x++) {
       var cartItem = BoxCart.getAt(x);
@@ -94,6 +102,9 @@ class Checkout_controller extends GetxController {
       print('Exception in addBill: $e'); // للتشخيص
       Get.snackbar('خطأ', 'حدث خطأ في إتمام الطلب: $e');
       return false;
+    } finally {
+      isSubmittingOrder(false);
+      update();
     }
   }
 

@@ -24,6 +24,14 @@ class Products_Controller extends GetxController {
   ScrollController scrollController =
       ScrollController(); // ScrollController للتحكم في التمرير
 
+  /// توحيد قراءة الحقول الرقمية من Firestore (قد تُخزَّن كـ int أو String).
+  /// بدون ذلك، `product['category'] == categoryId` يفشل فيظهر المنتج في البحث العام وليس في شاشة الفئة.
+  static int _firestoreInt(dynamic v) {
+    if (v == null) return 0;
+    if (v is int) return v;
+    return int.tryParse(v.toString()) ?? 0;
+  }
+
   @override
   void onInit() {
     try {
@@ -139,8 +147,9 @@ class Products_Controller extends GetxController {
         if (allProducts != null && allProducts.isNotEmpty) {
           // تصفية المنتجات حسب الفئة والبحث
           var filteredProducts = allProducts.where((product) {
-            bool matchesCategory = product['category'] == id_cat.value;
-            bool matchesSubCategory = city_id == -1 || product['subCategory'] == city_id;
+            bool matchesCategory = _firestoreInt(product['category']) == id_cat.value;
+            bool matchesSubCategory =
+                city_id == -1 || _firestoreInt(product['subCategory']) == city_id;
             bool matchesQuery = product['title'].toLowerCase().contains(query.toLowerCase()) ||
                                product['description'].toLowerCase().contains(query.toLowerCase());
             return matchesCategory && matchesSubCategory && matchesQuery;
@@ -196,8 +205,8 @@ class Products_Controller extends GetxController {
       if (allProducts != null && allProducts.isNotEmpty) {
         // تصفية المنتجات حسب الفئة والفئة الفرعية
         var filteredProducts = allProducts.where((product) {
-          bool matchesCategory = product['category'] == id_cat.value;
-          bool matchesSubCategory = id == -1 || product['subCategory'] == id;
+          bool matchesCategory = _firestoreInt(product['category']) == id_cat.value;
+          bool matchesSubCategory = id == -1 || _firestoreInt(product['subCategory']) == id;
           // طباعة فقط للمنتجات المطابقة للفئة
           if (matchesCategory) {
             print("Product: ${product['title']}, subCategory: ${product['subCategory']}, looking for: $id, matches: $matchesSubCategory");
@@ -267,8 +276,7 @@ class Products_Controller extends GetxController {
       if (citiesData != null && citiesData.isNotEmpty && allProducts != null && allProducts.isNotEmpty) {
         // تصفية الفئات الفرعية حسب الفئة الرئيسية
         var filteredCities = citiesData.where((city) {
-          bool matches = city['category'] == categoryId;
-          return matches;
+          return _firestoreInt(city['category']) == categoryId;
         }).toList();
         
         print("Filtered cities: ${filteredCities.length} cities for category $categoryId");
@@ -281,7 +289,8 @@ class Products_Controller extends GetxController {
           
           // البحث عن منتجات في هذه الفئة الفرعية
           bool hasProducts = allProducts.any((product) {
-            return product['category'] == categoryId && product['subCategory'] == subCategoryId;
+            return _firestoreInt(product['category']) == categoryId &&
+                _firestoreInt(product['subCategory']) == subCategoryId;
           });
           
           print("🔍 فحص فئة فرعية: ${cityData['title']} (ID: $subCategoryId), تحتوي على منتجات: $hasProducts");
@@ -339,7 +348,7 @@ class Products_Controller extends GetxController {
       if (productsData != null && productsData.isNotEmpty) {
         // تصفية المنتجات حسب الفئة الرئيسية
         var filteredProducts = productsData.where((product) {
-          bool matches = product['category'] == categoryId;
+          bool matches = _firestoreInt(product['category']) == categoryId;
           if (matches) {
             print("🎯 منتج مطابق: ${product['title']}, category: ${product['category']}, originalId: ${product['originalId']}");
           }
@@ -399,8 +408,8 @@ class Products_Controller extends GetxController {
         if (allProducts != null && allProducts.isNotEmpty) {
           // تصفية المنتجات حسب الفئة والفئة الفرعية
           var filteredProducts = allProducts.where((product) {
-            bool matchesCategory = product['category'] == id_cat.value;
-            bool matchesSubCategory = id == -1 || product['subCategory'] == id;
+            bool matchesCategory = _firestoreInt(product['category']) == id_cat.value;
+            bool matchesSubCategory = id == -1 || _firestoreInt(product['subCategory']) == id;
             return matchesCategory && matchesSubCategory;
           }).toList();
           

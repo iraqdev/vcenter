@@ -1,10 +1,12 @@
 import 'dart:math';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:onesignal_flutter/onesignal_flutter.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -22,6 +24,7 @@ import 'package:ecommerce/locale/Locale_controller.dart';
 import 'package:ecommerce/locale/locale.dart';
 import 'package:ecommerce/middleware/auth_middleware.dart';
 import 'package:ecommerce/controllers/app_notification_controller.dart';
+import 'package:ecommerce/services/audio_service.dart';
 import 'package:ecommerce/models/CartModel.dart';
 import 'package:ecommerce/models/FavoriteModel.dart';
 import 'package:ecommerce/views/Billing.dart';
@@ -47,20 +50,47 @@ SharedPreferences? sharedPreferences;
 var formatter = NumberFormat("#,###");
 late Box<CartModel> BoxCart;
 late Box<FavoriteModel> BoxFavorite;
+StreamSubscription<String>? _fcmTokenRefreshSubscription;
+final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+
+/// نفس خيارات Firebase في [main] وفي معالج الخلفية (مطلوب لصوت قناة أندرويد عند الإشعار والتطبيق مغلق/بالخلفية).
+const FirebaseOptions _kDefaultFirebaseOptions = FirebaseOptions(
+  apiKey: 'AIzaSyCXPm9uDXkmXTuN1tIwh1Vgc2War5wU4b0',
+  appId: '1:414036126974:ios:0901f66035f8cc516109af',
+  messagingSenderId: '414036126974',
+  projectId: 'v-center-5f74b',
+  storageBucket: 'v-center-5f74b.firebasestorage.app',
+);
+
+const AndroidNotificationChannel _highImportanceChannel = AndroidNotificationChannel(
+  'high_importance_channel_v4',
+  'إشعارات v center',
+  description: 'تنبيهات مهمة مع صوت',
+  importance: Importance.max,
+  playSound: true,
+  sound: RawResourceAndroidNotificationSound('vcenter_notify'),
+);
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: _kDefaultFirebaseOptions);
+
+  // بدون هذا، أندرويد قد يعرض إشعار FCM بقناة افتراضية بلا الصوت المخصص إذا لم تُنشأ القناة بعد.
+  final bgLocal = FlutterLocalNotificationsPlugin();
+  const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+  await bgLocal.initialize(const InitializationSettings(android: androidInit));
+  await bgLocal
+      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(_highImportanceChannel);
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // تهيئة Firebase والتطبيق في الخلفية
   try {
-    await Firebase.initializeApp(
-      options: const FirebaseOptions(
-        apiKey: 'AIzaSyCXPm9uDXkmXTuN1tIwh1Vgc2War5wU4b0',
-        appId: '1:414036126974:ios:0901f66035f8cc516109af',
-        messagingSenderId: '414036126974',
-        projectId: 'v-center-5f74b',
-        storageBucket: 'v-center-5f74b.firebasestorage.app',
-      ),
-    );
+    await Firebase.initializeApp(options: _kDefaultFirebaseOptions);
   } catch (e) {
     print('❌ Firebase initialization error: $e');
     // محاولة التهيئة بدون options (سيحاول العثور على GoogleService-Info.plist)
@@ -73,59 +103,81 @@ void main() async {
   BoxCart = await Hive.openBox<CartModel>('BoxCart');
   BoxFavorite = await Hive.openBox<FavoriteModel>('Favorite');
   
-  // تهيئة OneSignal مع معالجة أفضل للأخطاء (نفس App ID للتطبيقين)
+  // تهيئة FCM
   try {
-    OneSignal.initialize('8fbbffe4-d855-4384-b567-94354236f78a');
-    
-    // طلب إذن الإشعارات
-    OneSignal.Notifications.requestPermission(true);
-    
-    // إعداد OneSignal
-    OneSignal.User.pushSubscription.optIn();
-    
-    // تمييز أجهزة التطبيق الرئيسي (العملاء)
-    OneSignal.User.addTagWithKey('app_type', 'customer');
-    
-    print('✅ OneSignal initialized successfully');
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    final messaging = FirebaseMessaging.instance;
+    await messaging.requestPermission(alert: true, badge: true, sound: true);
+    await messaging.setAutoInitEnabled(true);
+    await messaging.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosInit = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+    const initSettings = InitializationSettings(
+      android: androidInit,
+      iOS: iosInit,
+    );
+    await _localNotifications.initialize(initSettings);
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(_highImportanceChannel);
+    print('✅ FCM initialized successfully');
   } catch (e) {
-    print('❌ OneSignal initialization error: $e');
+    print('❌ FCM initialization error: $e');
   }
   
   // تسجيل AppNotificationController
   Get.put(AppNotificationController());
   
-  // مراقبة تغييرات إذن الإشعارات
-  OneSignal.Notifications.addPermissionObserver((state) {
-    print('🔔 تغيير إذن الإشعارات: $state');
-  });
-  
-  // إعداد معالج استلام الإشعارات
-  OneSignal.Notifications.addForegroundWillDisplayListener((event) {
+  // إعداد معالج استلام الإشعارات في الواجهة
+  FirebaseMessaging.onMessage.listen((message) {
     print('📱 تم استلام إشعار في المقدمة:');
-    print('   - Title: ${event.notification.title}');
-    print('   - Body: ${event.notification.body}');
-    print('   - Notification ID: ${event.notification.notificationId}');
-    print('   - Data: ${event.notification.additionalData}');
-    
-    // عرض الإشعار حتى لو كان التطبيق مفتوح
-    // لا حاجة لـ preventDefault() - دع OneSignal يعرض الإشعار تلقائياً
-    
-    // إضافة الإشعار للمتحكم
+    print('   - Title: ${message.notification?.title}');
+    print('   - Body: ${message.notification?.body}');
+    print('   - Message ID: ${message.messageId}');
+    print('   - Data: ${message.data}');
+
     try {
-      // الانتظار قليلاً لضمان تهيئة المتحكم
+      AudioService().playNewOrderSound();
+      _localNotifications.show(
+        message.messageId.hashCode,
+        message.notification?.title ?? 'إشعار جديد',
+        message.notification?.body ?? '',
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            _highImportanceChannel.id,
+            _highImportanceChannel.name,
+            channelDescription: _highImportanceChannel.description,
+            importance: Importance.max,
+            priority: Priority.high,
+            playSound: true,
+            sound: const RawResourceAndroidNotificationSound('vcenter_notify'),
+            enableVibration: true,
+            icon: '@mipmap/ic_launcher',
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+            presentBanner: true,
+            presentList: true,
+            sound: 'vcenter_notify.wav',
+          ),
+        ),
+      );
+
       Future.delayed(Duration(milliseconds: 100), () {
         try {
           final notificationController = Get.find<AppNotificationController>();
-          final newNotification = {
-            'id': event.notification.notificationId,
-            'title': event.notification.title ?? 'إشعار جديد',
-            'body': event.notification.body ?? '',
-            'timestamp': DateTime.now(),
-            'isRead': false,
-            'data': event.notification.additionalData ?? {},
-          };
-          notificationController.notifications.insert(0, newNotification);
-          notificationController.unreadCount.value++;
+          notificationController.addIncomingMessage(message);
           print('✅ تم إضافة الإشعار للمتحكم');
           print('   - عدد الإشعارات الآن: ${notificationController.notifications.length}');
           print('   - عدد غير المقروءة: ${notificationController.unreadCount.value}');
@@ -137,13 +189,35 @@ void main() async {
       print('خطأ في معالجة الإشعار: $e');
     }
   });
-  
-  // حفظ Player ID للمستخدمين المسجلين مسبقاً (مع تأخير أكبر)
-  Future.delayed(Duration(seconds: 5), () {
-    _savePlayerIdForExistingUsers();
+
+  FirebaseMessaging.onMessageOpenedApp.listen((message) {
+    try {
+      final notificationController = Get.find<AppNotificationController>();
+      notificationController.addIncomingMessage(message);
+    } catch (e) {
+      print('خطأ في إضافة إشعار onMessageOpenedApp: $e');
+    }
   });
+
+  final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+  if (initialMessage != null) {
+    try {
+      final notificationController = Get.find<AppNotificationController>();
+      notificationController.addIncomingMessage(initialMessage);
+    } catch (e) {
+      print('خطأ في إضافة initialMessage: $e');
+    }
+  }
   
-  // OneSignal جاهز للعمل
+  // حفظ FCM Token للمستخدمين المسجلين مسبقاً
+  Future.delayed(Duration(seconds: 5), () {
+    _saveFcmTokenForExistingUsers();
+  });
+
+  // مزامنة التوكن عند تغيّره تلقائياً
+  _fcmTokenRefreshSubscription = FirebaseMessaging.instance.onTokenRefresh.listen((_) {
+    _saveFcmTokenForExistingUsers();
+  });
   
   runApp(MaterialApp(
     home: VideoSplashScreen(),
@@ -393,8 +467,8 @@ class MyApp extends StatelessWidget {
 
 
 
-// دالة لحفظ Player ID للمستخدمين المسجلين مسبقاً
-Future<void> _savePlayerIdForExistingUsers() async {
+// دالة لحفظ FCM Token للمستخدمين المسجلين مسبقاً
+Future<void> _saveFcmTokenForExistingUsers() async {
   try {
     print('🔍 بدء فحص المستخدمين القدامى...');
     
@@ -407,14 +481,14 @@ Future<void> _savePlayerIdForExistingUsers() async {
     
     print('📱 رقم الهاتف: $phone');
     
-    // الحصول على Player ID من OneSignal
-    final playerId = await OneSignal.User.getOnesignalId();
-    if (playerId == null || playerId.isEmpty) {
-      print('❌ لا يوجد Player ID من OneSignal');
+    // الحصول على FCM Token
+    final fcmToken = await FirebaseMessaging.instance.getToken();
+    if (fcmToken == null || fcmToken.isEmpty) {
+      print('❌ لا يوجد FCM token');
       return;
     }
     
-    print('🆔 Player ID: $playerId');
+    print('🆔 FCM Token: $fcmToken');
     
     // البحث عن المستخدم في Firebase
     final usersSnapshot = await FirebaseFirestore.instance
@@ -434,25 +508,14 @@ Future<void> _savePlayerIdForExistingUsers() async {
     print('🏢 closestBranch الحالي: ${userData['closestBranch']}');
     print('📍 shopLocation الحالي: ${userData['shopLocation']}');
     
-    // التحقق من وجود playerId مسبقاً
-    if (userData['playerId'] == null || userData['playerId'].toString().isEmpty) {
-      // تحديث المستخدم بإضافة playerId
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userDoc.id)
-          .update({
-        'playerId': playerId,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-      
-      print('✅ تم حفظ Player ID للمستخدم المسجل مسبقاً: $phone');
-      // إضافة tag الهاتف لاستهداف الإشعارات للعميل فقط (وليس الداشبورد)
-      OneSignal.User.addTagWithKey('phone', phone);
-    } else {
-      print('ℹ️ Player ID موجود مسبقاً');
-      // تحديث tag الهاتف دائماً
-      OneSignal.User.addTagWithKey('phone', phone);
-    }
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userDoc.id)
+        .update({
+      'fcmToken': fcmToken,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    print('✅ تم حفظ FCM token للمستخدم المسجل مسبقاً: $phone');
     
     // التحقق من وجود closestBranch للمستخدمين القدامى
     final closestBranch = userData['closestBranch'];
@@ -466,7 +529,7 @@ Future<void> _savePlayerIdForExistingUsers() async {
       print('✅ المستخدم $phone لديه closestBranch: $closestBranch');
     }
   } catch (e) {
-    print('❌ خطأ في حفظ Player ID للمستخدم المسجل مسبقاً: $e');
+    print('❌ خطأ في حفظ FCM token للمستخدم المسجل مسبقاً: $e');
   }
 }
 
@@ -620,7 +683,7 @@ Future<void> checkCurrentUserStatus() async {
     print('   - الهاتف: ${userData['phone']}');
     print('   - closestBranch: ${userData['closestBranch']}');
     print('   - shopLocation: ${userData['shopLocation']}');
-    print('   - playerId: ${userData['playerId']}');
+    print('   - fcmToken: ${userData['fcmToken']}');
     print('   - createdAt: ${userData['createdAt']}');
     print('   - updatedAt: ${userData['updatedAt']}');
     
@@ -636,6 +699,5 @@ Future<void> checkCurrentUserStatus() async {
   }
 }
 
-// دالة لاختبار OneSignal
-// OneSignal جاهز للعمل - لا حاجة لاختبارات تجريبية
+// FCM جاهز للعمل
 

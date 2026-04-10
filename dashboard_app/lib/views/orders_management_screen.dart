@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../utils/dashboard_dialog.dart';
 import '../controllers/order_controller.dart';
 import '../controllers/branch_controller.dart';
 import '../models/order_model.dart';
@@ -121,7 +122,7 @@ class OrdersManagementScreen extends StatelessWidget {
                       ),
                       SizedBox(height: 16),
                       ElevatedButton(
-                        onPressed: () => orderController.refresh(),
+                        onPressed: () => orderController.refresh(branch: branchController.selectedBranch.value),
                         child: Text('إعادة المحاولة'),
                       ),
                     ],
@@ -161,7 +162,7 @@ class OrdersManagementScreen extends StatelessWidget {
               }
               
               return RefreshIndicator(
-                onRefresh: () => orderController.refresh(),
+                onRefresh: () => orderController.refresh(branch: branchController.selectedBranch.value),
                 child: ListView.builder(
                   padding: EdgeInsets.all(16),
                   itemCount: orderController.filteredOrders.length,
@@ -357,12 +358,12 @@ class OrdersManagementScreen extends StatelessWidget {
         content: Text('هل أنت متأكد من حذف هذا الطلب؟\n\nهذا الإجراء لا يمكن التراجع عنه.'),
         actions: [
           TextButton(
-            onPressed: () => Get.back(),
+            onPressed: closeDashboardDialog,
             child: Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () {
-              Get.back();
+              closeDashboardDialog();
               orderController.deleteOrder(order.id);
             },
             style: ElevatedButton.styleFrom(

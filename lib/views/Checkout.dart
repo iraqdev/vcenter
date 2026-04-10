@@ -122,9 +122,12 @@ class Checkout extends StatelessWidget {
                           children: <Widget>[
                             GestureDetector(
                               onTap: () async {
+                                if (controller.isSubmittingOrder.value) {
+                                  return;
+                                }
                                 if (controller.currentStep == 1) {
                                   print(43);
-                                  await controller.addBill(
+                                  final success = await controller.addBill(
                                     delivery_controller.phone.text,
                                     '',
                                     '',
@@ -135,7 +138,9 @@ class Checkout extends StatelessWidget {
                                     '',
                                     controller.near,
                                   );
-                                  controls.onStepContinue!();
+                                  if (success) {
+                                    controls.onStepContinue!();
+                                  }
                                 } else {
                                   if (delivery_controller.name.text.isNotEmpty &&
                                       delivery_controller.phone.text.isNotEmpty) {
@@ -159,23 +164,37 @@ class Checkout extends StatelessWidget {
                                   borderRadius: BorderRadius.all(
                                     Radius.circular(15),
                                   ),
-                                  color: Colors.deepPurple,
+                                  color: controller.isSubmittingOrder.value
+                                      ? Colors.deepPurple.withOpacity(0.5)
+                                      : Colors.deepPurple,
                                   border: Border.all(
                                     color: Colors.deepPurple,
                                     width: 0.1,
                                   ),
                                 ),
                                 child: Center(
-                                  child: Text(
-                                    (controller.currentStep > 0)
-                                        ? '65'.tr
-                                        : '51'.tr,
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: Get.height * 0.015,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
+                                  child: controller.isSubmittingOrder.value
+                                      ? SizedBox(
+                                          width: Get.height * 0.018,
+                                          height: Get.height * 0.018,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                              Colors.white,
+                                            ),
+                                          ),
+                                        )
+                                      : Text(
+                                          (controller.currentStep > 0)
+                                              ? '65'.tr
+                                              : '51'.tr,
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: Get.height * 0.015,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
                                 ),
                               ),
                             ),

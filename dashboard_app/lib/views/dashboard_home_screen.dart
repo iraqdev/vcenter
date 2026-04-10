@@ -686,10 +686,10 @@ class DashboardHomeScreen extends StatelessWidget {
                       ? Icon(Icons.check_circle, color: Get.theme.primaryColor)
                       : null,
                   onTap: () async {
+                    Get.back(); // إغلاق الدايلوج فوراً عند الضغط
                     await branchController.changeBranch(branch);
-                    // إعادة تحميل الطلبات للفرع الجديد
+                    // إعادة تحميل الطلبات للفرع الجديد (يتم تلقائياً عبر listen في OrderController)
                     await orderController.fetchOrders(branch: branch);
-                    Get.back();
                   },
                 ),
               );

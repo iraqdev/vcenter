@@ -65,17 +65,36 @@ class OrderDetailsScreen extends StatelessWidget {
           ),
           child: Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 18),
         ),
-        onPressed: () => Get.back(),
+        onPressed: () {
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+          } else {
+            Get.back();
+          }
+        },
       ),
       flexibleSpace: FlexibleSpaceBar(
-        title: Text(
-          'طلب #${order.originalId}',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            shadows: [Shadow(color: Colors.black26, blurRadius: 4)],
-          ),
+        title: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              order.formattedCreatedAt,
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 11,
+              ),
+            ),
+            Text(
+              'طلب #${order.originalId}',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                shadows: [Shadow(color: Colors.black26, blurRadius: 4)],
+              ),
+            ),
+          ],
         ),
         background: Container(
           decoration: BoxDecoration(
@@ -88,21 +107,7 @@ class OrderDetailsScreen extends StatelessWidget {
               ],
             ),
           ),
-          child: SafeArea(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: 16),
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: Text(
-                  order.formattedCreatedAt,
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ),
-          ),
+          child: SizedBox.expand(),
         ),
       ),
       backgroundColor: statusColor,

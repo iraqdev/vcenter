@@ -1,4 +1,7 @@
 import 'package:get/get.dart';
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class BranchController extends GetxController {
@@ -14,6 +17,7 @@ class BranchController extends GetxController {
   // الفرع المختار حالياً
   final RxString selectedBranch = 'الغزالية'.obs;
   final RxBool isLoading = false.obs;
+  StreamSubscription<String>? _tokenRefreshSubscription;
   
   // مفتاح SharedPreferences
   static const String _branchKey = 'selected_branch';
@@ -22,6 +26,15 @@ class BranchController extends GetxController {
   void onInit() {
     super.onInit();
     _loadSelectedBranch();
+    _tokenRefreshSubscription = FirebaseMessaging.instance.onTokenRefresh.listen((_) {
+      _updateDashboardDevice(selectedBranch.value);
+    });
+  }
+
+  @override
+  void onClose() {
+    _tokenRefreshSubscription?.cancel();
+    super.onClose();
   }
   
   // تحميل الفرع المختار من SharedPreferences
@@ -38,8 +51,29 @@ class BranchController extends GetxController {
         await _saveSelectedBranch(selectedBranch.value);
         print('✅ BranchController - تم تعيين الفرع الافتراضي: ${selectedBranch.value}');
       }
+      await _updateDashboardDevice(selectedBranch.value);
     } catch (e) {
       print('❌ BranchController - خطأ في تحميل الفرع: $e');
+    }
+  }
+
+  /// تحديث سجل جهاز الداشبورد مع الفرع الحالي وتوكن FCM
+  Future<void> _updateDashboardDevice(String branch) async {
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token == null || token.isEmpty) {
+        print('❌ BranchController - لا يوجد FCM token');
+        return;
+      }
+      await FirebaseFirestore.instance.collection('dashboard_devices').doc(token).set({
+        'token': token,
+        'branch': branch,
+        'active': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      print('✅ BranchController - تم تحديث جهاز الداش للفرع: $branch');
+    } catch (e) {
+      print('❌ BranchController - خطأ في تحديث جهاز الداش: $e');
     }
   }
   
@@ -66,6 +100,7 @@ class BranchController extends GetxController {
     try {
       selectedBranch.value = branch;
       await _saveSelectedBranch(branch);
+      await _updateDashboardDevice(branch);
       
       print('✅ BranchController - تم تغيير الفرع إلى: $branch');
       
