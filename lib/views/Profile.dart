@@ -752,17 +752,24 @@ class Profile extends StatelessWidget {
                         children: [
                           // معلومات الفريق
                           _buildInfoCardWithColor(
-                            icon: Icons.group_rounded,
-                            title: 'فريق التطوير',
-                            value: 'DNZTeam',
+                            icon: Icons.business_rounded,
+                            title: 'الشركة المبرمجة',
+                            value: 'DNZ TEAM LTD',
                             color: Colors.blue,
                           ),
                           SizedBox(height: 12),
                           _buildInfoCardWithColor(
                             icon: Icons.phone_rounded,
-                            title: 'رقم الهاتف',
-                            value: '+9647811098146',
+                            title: 'هاتف الشركة المبرمجة',
+                            value: '+9647878783591',
                             color: Colors.green,
+                          ),
+                          SizedBox(height: 12),
+                          _buildInfoCardWithColor(
+                            icon: Icons.phone_rounded,
+                            title: 'مدير التطبيق والمبيعات',
+                            value: '+9647761620356',
+                            color: Colors.teal,
                           ),
                           SizedBox(height: 12),
                           _buildInfoCardWithColor(
