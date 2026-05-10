@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:ecommerce/controllers/RegisterController.dart';
+import 'dart:io';
 
 class RegisterView extends StatelessWidget {
   RegisterView({super.key});
@@ -46,22 +47,26 @@ class RegisterView extends StatelessWidget {
                   FontWeight.w400,
                 ),
                 _space(Get.height * 0.02),
-                _buildRegisterForm(),
+                _buildTabs(),
                 _space(Get.height * 0.02),
                 GetBuilder<RegisterController>(
                   builder: (builder) {
-                    if (builder.showLocationChoice) {
+                    if (builder.selectedRegisterTab == 0 &&
+                        builder.showLocationChoice) {
                       return _locationChoiceSection();
                     } else if (builder.loading) {
                       return _buildLoadingButton();
                     } else {
-                      return _buttonRegister();
+                      return builder.selectedRegisterTab == 0
+                          ? _buttonRegister()
+                          : _buttonCustomerRegister();
                     }
                   },
                 ),
                 GetBuilder<RegisterController>(
                   builder: (builder) {
-                    if (builder.showLocationChoice) {
+                    if (builder.selectedRegisterTab == 0 &&
+                        builder.showLocationChoice) {
                       return _finalRegisterButton();
                     } else {
                       return SizedBox();
@@ -84,6 +89,66 @@ class RegisterView extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildTabs() {
+    return GetBuilder<RegisterController>(
+      builder: (builder) {
+        return Column(
+          children: [
+            Container(
+              margin: EdgeInsets.symmetric(horizontal: 24),
+              padding: EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  _buildTabButton('تسجيل متجر', 0),
+                  _buildTabButton('تسجيل كزبون', 1),
+                ],
+              ),
+            ),
+            _space(Get.height * 0.02),
+            builder.selectedRegisterTab == 0
+                ? _buildRegisterForm()
+                : _buildCustomerRegisterForm(),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildTabButton(String title, int index) {
+    return Expanded(
+      child: GetBuilder<RegisterController>(
+        builder: (builder) {
+          final isSelected = builder.selectedRegisterTab == index;
+          return GestureDetector(
+            onTap: () => builder.changeRegisterTab(index),
+            child: AnimatedContainer(
+              duration: Duration(milliseconds: 180),
+              padding: EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.white : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: isSelected ? Colors.deepPurple : Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -113,7 +178,105 @@ class RegisterView extends StatelessWidget {
           _space(Get.height * 0.02),
           _select(),
           _space(Get.height * 0.02),
-          _textme("اسم المنطقة", controller.address_, false),
+          GetBuilder<RegisterController>(
+            builder: (c) {
+              if (c.selectedGovernorate != 'بغداد') {
+                return const SizedBox.shrink();
+              }
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _selectShopArea(),
+                  _space(Get.height * 0.02),
+                ],
+              );
+            },
+          ),
+          _shopImagePicker(),
+        ],
+      ),
+    );
+  }
+
+  Widget _shopImagePicker() {
+    return GetBuilder<RegisterController>(
+      builder: (builder) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'صورة المحل',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[700],
+              ),
+            ),
+            SizedBox(height: 10),
+            InkWell(
+              onTap: builder.pickShopImage,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                width: double.infinity,
+                height: 150,
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: builder.shopImageFile == null
+                    ? Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.add_a_photo_outlined, color: Colors.grey[600]),
+                          SizedBox(height: 8),
+                          Text(
+                            'اضغط لإضافة صورة المحل',
+                            style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                          ),
+                        ],
+                      )
+                    : ClipRRect(
+                        borderRadius: BorderRadius.circular(11),
+                        child: Image.file(
+                          File(builder.shopImageFile!.path),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildCustomerRegisterForm() {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 24),
+      padding: EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          _textme('الاسم', controller.customerName_, false),
+          _space(Get.height * 0.02),
+          _textme('رقم الهاتف', controller.customerPhone_, false),
+          _space(Get.height * 0.02),
+          _textme('المنطقة/المحافظة', controller.customerAreaOrGovernorate_, false),
+          _space(Get.height * 0.02),
+          _textme('البريد الإلكتروني (اختياري)', controller.customerEmail_, false),
+          _space(Get.height * 0.02),
+          _textme('اشرح طلبك', controller.customerRequestDetails_, false, maxLines: 4),
         ],
       ),
     );
@@ -308,10 +471,85 @@ class RegisterView extends StatelessWidget {
     );
   }
 
+  Widget _selectShopArea() {
+    return GetBuilder<RegisterController>(
+      builder: (builder) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: Colors.grey[300]!),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton2<String>(
+              dropdownStyleData: DropdownStyleData(
+                maxHeight: 250,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: Offset(0, 5),
+                    ),
+                  ],
+                ),
+              ),
+              isExpanded: true,
+              hint: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'اختر المنطقة',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[500],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              items: builder.shopAreas
+                  .map(
+                    (String item) => DropdownMenuItem<String>(
+                      value: item,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          item,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+              value: builder.selectedShopArea,
+              onChanged: (value) {
+                builder.changeShopArea(value);
+              },
+              buttonStyleData: ButtonStyleData(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                decoration: BoxDecoration(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+              ),
+              menuItemStyleData: MenuItemStyleData(height: 46),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _textme(
     String title,
     TextEditingController textEditingController,
     bool ispassword,
+    {int maxLines = 1}
   ) {
     return Container(
       decoration: BoxDecoration(
@@ -321,6 +559,7 @@ class RegisterView extends StatelessWidget {
       ),
       child: TextField(
         obscureText: ispassword,
+        maxLines: maxLines,
         controller: textEditingController,
         decoration: InputDecoration(
           hintText: title,
@@ -341,12 +580,19 @@ class RegisterView extends StatelessWidget {
     switch (fieldType) {
       case 'اسم المحل':
         return Icons.store;
+      case 'الاسم':
+        return Icons.person_outline;
       case 'رقم الهاتف':
         return Icons.phone_outlined;
       case 'كلمة المرور':
         return Icons.lock_outline;
       case 'اسم المنطقة':
+      case 'المنطقة/المحافظة':
         return Icons.location_on_outlined;
+      case 'البريد الإلكتروني (اختياري)':
+        return Icons.alternate_email;
+      case 'اشرح طلبك':
+        return Icons.description_outlined;
       default:
         return Icons.edit_outlined;
     }
@@ -419,6 +665,7 @@ class RegisterView extends StatelessWidget {
               controller.phone_.text.isNotEmpty &&
               controller.password_.text.isNotEmpty &&
               controller.address_.text.isNotEmpty &&
+              controller.selectedGovernorate != null &&
               controller.selectedGovernorate!.isNotEmpty) {
             // إظهار اختيار الموقع
             controller.showLocationChoiceDialog();
@@ -486,6 +733,45 @@ class RegisterView extends StatelessWidget {
           child: Center(
             child: Text(
               "تأكيد إنشاء الحساب",
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buttonCustomerRegister() {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 24),
+      child: GestureDetector(
+        onTap: () {
+          controller.submitCustomerRequest();
+        },
+        child: Container(
+          height: Get.height * 0.055,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.deepPurple, Colors.deepPurple.withOpacity(0.8)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.deepPurple.withOpacity(0.3),
+                blurRadius: 15,
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Center(
+            child: Text(
+              "إرسال الطلب",
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w600,

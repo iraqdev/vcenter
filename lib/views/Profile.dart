@@ -267,60 +267,78 @@ class Profile extends StatelessWidget {
                   end: Alignment.bottomRight,
                 ),
               ),
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 20,
-                            offset: Offset(0, 10),
-                          ),
-                        ],
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.center,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: constraints.maxWidth - 24,
+                          maxHeight: constraints.maxHeight - 16,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 20,
+                                    offset: Offset(0, 10),
+                                  ),
+                                ],
+                              ),
+                              child: Obx(() {
+                                return CircleAvatar(
+                                  radius: Get.width * 0.12,
+                                  backgroundColor: Colors.deepPurple.withOpacity(0.1),
+                                  backgroundImage: profileController.profilePicUrl.value.isNotEmpty
+                                      ? NetworkImage(profileController.profilePicUrl.value)
+                                      : null,
+                                  child: profileController.profilePicUrl.value.isEmpty
+                                      ? Icon(
+                                          Icons.person,
+                                          size: Get.width * 0.15,
+                                          color: Colors.deepPurple,
+                                        )
+                                      : null,
+                                );
+                              }),
+                            ),
+                            SizedBox(height: (Get.height * 0.02).clamp(4.0, 16.0)),
+                            Text(
+                              sharedPreferences?.getString('name') ?? '',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'الملف الشخصي',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.8),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      child: Obx(() {
-                        return CircleAvatar(
-                          radius: Get.width * 0.12,
-                          backgroundColor: Colors.deepPurple.withOpacity(0.1),
-                          backgroundImage: profileController.profilePicUrl.value.isNotEmpty
-                              ? NetworkImage(profileController.profilePicUrl.value)
-                              : null,
-                          child: profileController.profilePicUrl.value.isEmpty
-                              ? Icon(
-                                  Icons.person,
-                                  size: Get.width * 0.15,
-                                  color: Colors.deepPurple,
-                                )
-                              : null,
-                        );
-                      }),
                     ),
-                    SizedBox(height: Get.height * 0.02),
-                    Text(
-                      sharedPreferences?.getString('name') ?? '',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'الملف الشخصي',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.8),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
+                  );
+                },
               ),
             ),
           ),

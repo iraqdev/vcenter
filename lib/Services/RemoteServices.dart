@@ -43,8 +43,12 @@ class RemoteServices {
       }
       final data = query.docs.first.data();
       final isActive = data['active'] == true || data['active'] == 1;
+      final isReviewed = data['isReviewed'] == true;
       // إذا كان المستخدم محظوراً من الداش - لا نسمح بتسجيل الدخول
       if (!isActive) {
+        if (!isReviewed) {
+          return '{"message":"Account pending approval"}';
+        }
         return '{"message":"Account is banned"}';
       }
       final response = {
@@ -79,7 +83,17 @@ class RemoteServices {
   }
 
   //Register
-  static Future register(phone, name, password, city, address, near, shopLocation, closestBranch) async {
+  static Future register(
+    phone,
+    name,
+    password,
+    city,
+    address,
+    near,
+    shopLocation,
+    closestBranch, {
+    String? shopPicUrl,
+  }) async {
     try {
       // تحقق من تكرار الهاتف
       final dup = await _db
@@ -101,7 +115,8 @@ class RemoteServices {
         'near': near,
         'closestBranch': closestBranch, // إضافة أقرب فرع
         'point': 0,
-        'active': true,
+        'active': false,
+        'isReviewed': false,
         'createdAt': now,
         'updatedAt': now,
       };
@@ -113,11 +128,40 @@ class RemoteServices {
           'lng': shopLocation.longitude,
         };
       }
+      if (shopPicUrl != null && shopPicUrl.trim().isNotEmpty) {
+        userData['shopPic'] = shopPicUrl.trim();
+      }
       
       final doc = await _db.collection(_colUsers).add(userData);
       // حفظ originalId إذا لزم التطابق مع النماذج الرقمية
       await doc.update({'originalId': DateTime.now().millisecondsSinceEpoch});
       return '{"message":"Register Successfully"}';
+    } catch (e) {
+      return '{"message":"An unexpected error occurred","Status_code":500}';
+    }
+  }
+
+  // Customer request register (without creating app account)
+  static Future submitCustomerRequest({
+    required String name,
+    required String phone,
+    required String areaOrGovernorate,
+    required String requestDetails,
+    String? email,
+  }) async {
+    try {
+      final now = FieldValue.serverTimestamp();
+      await _db.collection('customer_requests').add({
+        'name': name,
+        'phone': phone,
+        'areaOrGovernorate': areaOrGovernorate,
+        'requestDetails': requestDetails,
+        'email': (email ?? '').trim(),
+        'active': true,
+        'createdAt': now,
+        'updatedAt': now,
+      });
+      return '{"message":"Request Submitted Successfully"}';
     } catch (e) {
       return '{"message":"An unexpected error occurred","Status_code":500}';
     }

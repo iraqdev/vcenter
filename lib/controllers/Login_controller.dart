@@ -152,6 +152,12 @@ class Login_controller extends GetxController {
             is_error();
             print(json_response['message']);
             isnot_loading();
+          } else if (json_response['message'] == "Account pending approval") {
+            errormsg =
+                "حسابك قيد المراجعة. سيتم السماح بتسجيل الدخول بعد موافقة الإدارة.";
+            is_error();
+            print(json_response['message']);
+            isnot_loading();
           } else if (json_response['message'] == "Account is banned") {
             errormsg = "تم حظر حسابك. يمكنك التصفح كزائر من الزر أدناه.";
             is_error();

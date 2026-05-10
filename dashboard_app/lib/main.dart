@@ -12,6 +12,7 @@ import 'views/orders_management_screen.dart';
 import 'views/notifications_management_screen.dart';
 import 'views/sliders_management_screen.dart';
 import 'views/categories_management_screen.dart';
+import 'views/customer_requests_screen.dart';
 import 'controllers/user_controller.dart';
 import 'controllers/product_controller.dart';
 import 'controllers/category_controller.dart';
@@ -20,6 +21,7 @@ import 'controllers/order_controller.dart';
 import 'controllers/notification_controller.dart';
 import 'controllers/branch_controller.dart';
 import 'controllers/slider_controller.dart';
+import 'controllers/customer_request_controller.dart';
 import 'services/audio_service.dart';
 
 final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
@@ -95,6 +97,7 @@ void main() async {
   Get.put(ProductController());
   Get.put(NotificationController());
   Get.put(SliderController());
+  Get.put(CustomerRequestController());
   Get.put(OrderController()); // بعد BranchController
 
   runApp(DashboardApp());
@@ -143,6 +146,7 @@ class DashboardApp extends StatelessWidget {
           GetPage(name: '/sliders', page: () => SlidersManagementScreen()),
           GetPage(name: '/categories', page: () => CategoriesManagementScreen()),
           GetPage(name: '/new_users', page: () => NewUsersReviewScreen()),
+          GetPage(name: '/customer_requests', page: () => CustomerRequestsScreen()),
         ],
     );
   }

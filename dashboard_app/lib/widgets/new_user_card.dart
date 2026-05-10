@@ -157,6 +157,33 @@ class NewUserCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (user.shopPic != null && user.shopPic!.isNotEmpty) ...[
+                  SizedBox(height: 12),
+                  Text(
+                    'صورة المحل',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                  SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.network(
+                      user.shopPic!,
+                      width: double.infinity,
+                      height: 130,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        height: 130,
+                        color: Colors.grey[100],
+                        alignment: Alignment.center,
+                        child: Icon(Icons.broken_image, color: Colors.grey[500]),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

@@ -30,6 +30,11 @@
 	<string>نحتاج إلى الوصول إلى موقعك الجغرافي لتحديد عنوانك أثناء التسجيل وتوفير خدمة التوصيل المناسبة لك.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>نحتاج إلى الوصول إلى موقعك الجغرافي لتحديد عنوانك أثناء التسجيل وتوفير خدمة التوصيل المناسبة لك.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>whatsapp</string>
+		<string>https</string>
+	</array>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

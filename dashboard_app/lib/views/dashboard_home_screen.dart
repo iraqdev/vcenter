@@ -271,6 +271,15 @@ class DashboardHomeScreen extends StatelessWidget {
                       Get.toNamed('/new_users');
                     },
                   ),
+                  _buildDrawerItem(
+                    icon: Icons.assignment_outlined,
+                    title: 'طلبات تسجيل الزبائن',
+                    subtitle: 'عرض الطلبات المرسلة من التطبيق',
+                    onTap: () {
+                      Get.back();
+                      Get.toNamed('/customer_requests');
+                    },
+                  ),
                   
                   Divider(),
                   

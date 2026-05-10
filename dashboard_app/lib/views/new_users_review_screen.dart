@@ -282,10 +282,16 @@ class NewUsersReviewScreen extends StatelessWidget {
             child: Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () {
-              Get.back();
-              userController.markAsReviewed(user.id);
-              userController.updateUserStatus(user.id, true);
+            onPressed: () async {
+              // إغلاق نافذة التأكيد فوراً لتجنب أي تجمد بصري
+              if (Get.isDialogOpen ?? false) {
+                Get.back();
+              }
+              await userController.markAsReviewed(user.id);
+              await userController.updateUserStatus(user.id, true);
+              await userController.loadNewUsers(
+                branch: branchController.selectedBranch.value,
+              );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,
@@ -341,10 +347,16 @@ class NewUsersReviewScreen extends StatelessWidget {
             child: Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () {
-              Get.back();
-              userController.markAsReviewed(user.id);
-              userController.updateUserStatus(user.id, false);
+            onPressed: () async {
+              // إغلاق نافذة التأكيد فوراً لتجنب أي تجمد بصري
+              if (Get.isDialogOpen ?? false) {
+                Get.back();
+              }
+              await userController.markAsReviewed(user.id);
+              await userController.updateUserStatus(user.id, false);
+              await userController.loadNewUsers(
+                branch: branchController.selectedBranch.value,
+              );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,

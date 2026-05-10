@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
+import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -8,6 +9,10 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:whatsapp_unilink/whatsapp_unilink.dart';
 import '../Services/RemoteServices.dart';
 import '../views/MapPicker.dart';
 
@@ -20,6 +25,13 @@ class RegisterController extends GetxController {
   late TextEditingController name_ = TextEditingController();
   late TextEditingController address_ = TextEditingController();
   late TextEditingController pageName_ = TextEditingController();
+  late TextEditingController customerName_ = TextEditingController();
+  late TextEditingController customerPhone_ = TextEditingController();
+  late TextEditingController customerAreaOrGovernorate_ = TextEditingController();
+  late TextEditingController customerRequestDetails_ = TextEditingController();
+  late TextEditingController customerEmail_ = TextEditingController();
+  int selectedRegisterTab = 0;
+  File? shopImageFile;
 
   Position? _currentPosition;
   // المواقع المتاحة فقط - إحداثيات دقيقة للفروع
@@ -201,9 +213,49 @@ class RegisterController extends GetxController {
 
   List<String> gonvernorates = [];
   String? selectedGovernorate;
+  List<String> shopAreas = [
+    'زيونة',
+    'شارع فلسطين',
+    'كرادة',
+    'الأمين',
+    'المشتل',
+    'بلديات',
+    'الزعفرانية',
+    'اعضمية',
+    'كريعات',
+    'حي القاهرة',
+    'البنوك',
+    'الكاظمية',
+    'حي تونس',
+    'باب المعظم',
+    'الكفاح',
+    'الغزالية',
+    'العامرية',
+    'حي الخضراء',
+    'الشعلة',
+    'حي الجهاد',
+    'البياع',
+    'حي الشهداء',
+  ];
+  String? selectedShopArea;
 
   void changeSelect(value) {
+    final prev = selectedGovernorate;
     selectedGovernorate = value;
+    selectedShopArea = null;
+    if (value == 'بغداد') {
+      if (prev != 'بغداد') {
+        address_.clear();
+      }
+    } else {
+      address_.text = value ?? '';
+    }
+    update();
+  }
+
+  void changeShopArea(String? value) {
+    selectedShopArea = value;
+    address_.text = value ?? '';
     update();
   }
 
@@ -214,6 +266,62 @@ class RegisterController extends GetxController {
 
   void is_error() {
     errorRegister = true;
+    update();
+  }
+
+  void clearError() {
+    errorRegister = false;
+    errormsg = '';
+    update();
+  }
+
+  Future<void> pickShopImage() async {
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      shopImageFile = File(picked.path);
+      update();
+    }
+  }
+
+  Future<String?> _uploadShopImage(String phone) async {
+    if (shopImageFile == null) return null;
+    try {
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('userspic/$phone-shop.jpg');
+      await ref.putFile(shopImageFile!);
+      return await ref.getDownloadURL();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<void> _openWhatsAppSupport() async {
+    const supportMessage = 'مرحبا، أريد تفعيل حسابي في التطبيق.';
+    final appUri = WhatsAppUnilink(
+      phoneNumber: '07761620356',
+      text: supportMessage,
+    ).asUri();
+    try {
+      var ok = await launchUrl(appUri, mode: LaunchMode.externalApplication);
+      if (!ok) {
+        final webUri = Uri.parse(
+          'https://wa.me/9647761620356?text=${Uri.encodeComponent(supportMessage)}',
+        );
+        ok = await launchUrl(webUri, mode: LaunchMode.externalApplication);
+      }
+      if (!ok) {
+        Get.snackbar('خطأ', 'تعذر فتح واتساب على هذا الجهاز');
+      }
+    } catch (_) {
+      Get.snackbar('خطأ', 'تعذر فتح واتساب على هذا الجهاز');
+    }
+  }
+
+  void changeRegisterTab(int index) {
+    selectedRegisterTab = index;
+    showLocationChoice = false;
+    clearError();
     update();
   }
 
@@ -248,6 +356,7 @@ class RegisterController extends GetxController {
   }
 
   Future<void> register() async {
+    clearError();
     // التحقق من الحقول
     if (name_.text.isEmpty) {
       errormsg = "يرجى إدخال الاسم الكامل.";
@@ -305,6 +414,12 @@ class RegisterController extends GetxController {
       return;
     }
 
+    if (shopImageFile == null) {
+      errormsg = "يرجى إضافة صورة المحل.";
+      is_error();
+      return;
+    }
+
     // التحقق من وجود موقع المحل
     if (shopLocation == null) {
       errormsg = "يجب تحديد موقع المحل لإنشاء الحساب.";
@@ -314,6 +429,13 @@ class RegisterController extends GetxController {
 
     // إنشاء الحساب مباشرة بعد التحقق من صحة البيانات
     is_loading();
+    final shopPicUrl = await _uploadShopImage(phone_.text.trim());
+    if (shopPicUrl == null || shopPicUrl.isEmpty) {
+      errormsg = "فشل رفع صورة المحل. حاول مرة أخرى.";
+      is_error();
+      isnot_loading();
+      return;
+    }
     var response = await RemoteServices.register(
       phone_.text.trim(),
       name_.text.trim(),
@@ -323,6 +445,7 @@ class RegisterController extends GetxController {
       closestPoint,
       shopLocation,
       closestBranchName, // إضافة أقرب فرع
+      shopPicUrl: shopPicUrl,
     );
 
     if (response != null) {
@@ -335,20 +458,26 @@ class RegisterController extends GetxController {
         });
         
         isnot_loading();
-        // عرض رسالة ترحيبية
-        Get.snackbar(
-          'تم إنشاء الحساب بنجاح!',
-          'مرحباً بك في VCenter! يمكنك تسجيل الدخول الآن.',
-          backgroundColor: Colors.green,
-          colorText: Colors.white,
-          icon: Icon(Icons.check_circle, color: Colors.white),
-          duration: Duration(seconds: 4),
-          snackPosition: SnackPosition.TOP,
+        Get.defaultDialog(
+          title: 'تم التسجيل',
+          titleStyle: TextStyle(fontWeight: FontWeight.bold),
+          middleText: 'يرجى مراسلة الدعم لتفعيل حسابك',
+          textConfirm: 'واتساب الدعم',
+          textCancel: 'لاحقاً',
+          confirmTextColor: Colors.white,
+          buttonColor: Colors.green,
+          onConfirm: () async {
+            Get.back();
+            await _openWhatsAppSupport();
+            await Future.delayed(const Duration(milliseconds: 400));
+            Get.offNamed('/');
+          },
+          onCancel: () {
+            Get.offNamed('/');
+          },
         );
-        // الانتقال للصفحة الرئيسية بعد عرض الرسالة
-        Future.delayed(Duration(seconds: 1), () {
-          Get.offNamed('/');
-        });
+        shopImageFile = null;
+        update();
         } else if (json_response['message'] == "Phone number already in use") {
           errormsg =
               "رقم الهاتف مستخدم بالفعل. يرجى استخدام رقم هاتف آخر أو تسجيل الدخول إذا كان لديك حساب.";
@@ -385,6 +514,83 @@ class RegisterController extends GetxController {
     } else {
       errormsg =
           "فشل الاتصال بالخادم. تحقق من اتصال الإنترنت وحاول مرة أخرى.";
+      is_error();
+      isnot_loading();
+    }
+  }
+
+  Future<void> submitCustomerRequest() async {
+    clearError();
+
+    if (customerName_.text.trim().isEmpty) {
+      errormsg = "يرجى إدخال الاسم.";
+      is_error();
+      return;
+    }
+    if (customerPhone_.text.trim().isEmpty) {
+      errormsg = "يرجى إدخال رقم الهاتف.";
+      is_error();
+      return;
+    }
+    if (customerAreaOrGovernorate_.text.trim().isEmpty) {
+      errormsg = "يرجى إدخال المنطقة/المحافظة.";
+      is_error();
+      return;
+    }
+    if (customerRequestDetails_.text.trim().isEmpty) {
+      errormsg = "يرجى شرح الطلب.";
+      is_error();
+      return;
+    }
+
+    if (customerPhone_.text.trim().length != 11 ||
+        !customerPhone_.text.trim().startsWith('07')) {
+      errormsg = "رقم الهاتف غير صحيح. يجب أن يكون 11 رقم ويبدأ بـ 07.";
+      is_error();
+      return;
+    }
+
+    final email = customerEmail_.text.trim();
+    if (email.isNotEmpty &&
+        !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email)) {
+      errormsg = "صيغة البريد الإلكتروني غير صحيحة.";
+      is_error();
+      return;
+    }
+
+    is_loading();
+    final response = await RemoteServices.submitCustomerRequest(
+      name: customerName_.text.trim(),
+      phone: customerPhone_.text.trim(),
+      areaOrGovernorate: customerAreaOrGovernorate_.text.trim(),
+      requestDetails: customerRequestDetails_.text.trim(),
+      email: email.isEmpty ? null : email,
+    );
+
+    if (response != null) {
+      final jsonResponse = jsonDecode(response);
+      if (jsonResponse['message'] == "Request Submitted Successfully") {
+        isnot_loading();
+        Get.snackbar(
+          'تم إرسال الطلب',
+          'تم إرسال معلوماتك إلى الإدارة بنجاح.',
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+          snackPosition: SnackPosition.TOP,
+        );
+        customerName_.clear();
+        customerPhone_.clear();
+        customerAreaOrGovernorate_.clear();
+        customerRequestDetails_.clear();
+        customerEmail_.clear();
+        update();
+      } else {
+        errormsg = "حدث خطأ أثناء إرسال الطلب. حاول مرة أخرى.";
+        is_error();
+        isnot_loading();
+      }
+    } else {
+      errormsg = "فشل الاتصال. تحقق من الإنترنت وحاول مرة أخرى.";
       is_error();
       isnot_loading();
     }
