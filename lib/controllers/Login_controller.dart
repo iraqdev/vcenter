@@ -119,6 +119,10 @@ class Login_controller extends GetxController {
             await sharedPreferences!.setString('near', json_response['near']);
             await sharedPreferences!.setInt('active', json_response['active']);
             await sharedPreferences!.setString('name', json_response['username']);
+            await sharedPreferences!.setString(
+              'userType',
+              json_response['userType']?.toString() ?? '',
+            );
             if (isremember) {
               await sharedPreferences!.setBool('remember', true);
             }

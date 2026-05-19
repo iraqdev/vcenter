@@ -225,6 +225,15 @@ class DashboardHomeScreen extends StatelessWidget {
                       Get.toNamed('/orders');
                     },
                   ),
+                  _buildDrawerItem(
+                    icon: Icons.people,
+                    title: 'طلبات الزبائن',
+                    subtitle: 'كل طلبات الزبائن — فرع العراق',
+                    onTap: () {
+                      Get.back();
+                      Get.toNamed('/customer_orders');
+                    },
+                  ),
                   
                   // إدارة الإشعارات
                   _buildDrawerItem(

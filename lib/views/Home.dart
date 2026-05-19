@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:ecommerce/controllers/Home_controller.dart';
 import 'package:ecommerce/main.dart';
+import 'package:ecommerce/utils/price_utils.dart';
 
 class Home extends StatelessWidget {
   Home({super.key});
@@ -415,7 +416,7 @@ class Home extends StatelessWidget {
                         borderRadius: BorderRadius.circular(15),
                       ),
                       child: Text(
-                        '${(sharedPreferences?.getInt('active') == 1) ? formatter.format(price) + ' ' + '18'.tr : '...'} ',
+                        '${formatUserPriceLabel(price, suffix: ' ${'18'.tr}')} ',
                         style: TextStyle(
                           fontSize: Get.width * 0.028,
                           fontWeight: FontWeight.w700,

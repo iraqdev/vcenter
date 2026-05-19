@@ -15,6 +15,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 class RemoteServices {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
   static const String _colUsers = 'users';
+  static const Set<String> _iraqBranchBaghdadAreas = {
+    'زيونة',
+    'شارع فلسطين',
+    'كرادة',
+    'الأمين',
+    'المشتل',
+    'بلديات',
+  };
 
   /// يبقي منتجاً واحداً لكل `Product.id` (نفس `originalId` في Firestore) لتفادي التكرار في الواجهة.
   static List<Product> _uniqueProductsByAppId(List<Product> products) {
@@ -58,6 +66,7 @@ class RemoteServices {
         'near': data['near'] ?? '',
         'active': 1,
         'username': data['name'] ?? '',
+        'userType': data['userType'] ?? '',
       };
       return jsonEncode(response);
     } catch (e) {
@@ -114,6 +123,7 @@ class RemoteServices {
         'address': address,
         'near': near,
         'closestBranch': closestBranch, // إضافة أقرب فرع
+        'userType': 'متجر',
         'point': 0,
         'active': false,
         'isReviewed': false,
@@ -141,27 +151,42 @@ class RemoteServices {
     }
   }
 
-  // Customer request register (without creating app account)
-  static Future submitCustomerRequest({
+  /// تسجيل زبون — حساب مفعّل مباشرة تحت userType: زبون
+  static Future registerCustomer({
     required String name,
     required String phone,
+    required String password,
     required String areaOrGovernorate,
     required String requestDetails,
     String? email,
   }) async {
     try {
+      final dup = await _db
+          .collection(_colUsers)
+          .where('phone', isEqualTo: phone)
+          .limit(1)
+          .get();
+      if (dup.docs.isNotEmpty) {
+        return '{"message":"Phone number already in use"}';
+      }
       final now = FieldValue.serverTimestamp();
-      await _db.collection('customer_requests').add({
-        'name': name,
+      final doc = await _db.collection(_colUsers).add({
         'phone': phone,
-        'areaOrGovernorate': areaOrGovernorate,
-        'requestDetails': requestDetails,
+        'name': name,
+        'password': password,
+        'city': areaOrGovernorate,
+        'address': requestDetails,
+        'near': '',
         'email': (email ?? '').trim(),
+        'userType': 'زبون',
+        'point': 0,
         'active': true,
+        'isReviewed': true,
         'createdAt': now,
         'updatedAt': now,
       });
-      return '{"message":"Request Submitted Successfully"}';
+      await doc.update({'originalId': DateTime.now().millisecondsSinceEpoch});
+      return '{"message":"Register Successfully"}';
     } catch (e) {
       return '{"message":"An unexpected error occurred","Status_code":500}';
     }
@@ -205,6 +230,26 @@ class RemoteServices {
     } catch (e) {
       return null;
     }
+  }
+
+  static Future<Map<String, dynamic>?> getUserProfileByPhone(String phone) async {
+    try {
+      if (phone.isEmpty) return null;
+      final query = await _db
+          .collection(_colUsers)
+          .where('phone', isEqualTo: phone)
+          .limit(1)
+          .get();
+      if (query.docs.isEmpty) return null;
+      return query.docs.first.data();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  static Future<String> getUserTypeByPhone(String phone) async {
+    final profile = await getUserProfileByPhone(phone);
+    return (profile?['userType'] ?? '').toString();
   }
 
   //Fetch Sizes by Color
@@ -380,22 +425,46 @@ class RemoteServices {
     try {
       final now = FieldValue.serverTimestamp();
 
-      // الخطوة 1: قراءة closestBranch المحفوظ في بيانات المستخدم (الأدق)
-      String closestBranch = await getUserClosestBranch() ?? '';
+      final userProfile = await getUserProfileByPhone(user_phone.toString());
+      final userType = (userProfile?['userType'] ?? '').toString();
 
-      // الخطوة 2: إذا لم يكن محفوظاً، احسبه من نص near كاحتياط
-      if (closestBranch.isEmpty) {
-        closestBranch = _determineClosestBranch(near.toString());
-        print('⚠️ RemoteServices - لا يوجد closestBranch محفوظ، تم الحساب من near: $closestBranch');
+      String billCity = city.toString().trim();
+      String billAddress = address.toString().trim();
+      if (userProfile != null) {
+        if (billCity.isEmpty) {
+          billCity = (userProfile['city'] ?? '').toString().trim();
+        }
+        if (billAddress.isEmpty) {
+          billAddress = (userProfile['address'] ?? '').toString().trim();
+        }
+      }
+
+      final isIraqBranchBaghdadArea =
+          billCity == 'بغداد' && _iraqBranchBaghdadAreas.contains(billAddress);
+
+      // الزبون وكل مناطق بغداد المحددة تظهر في فرع العراق بالداشبورد
+      String closestBranch;
+      if (userType == 'زبون') {
+        closestBranch = 'العراق';
+        print('✅ RemoteServices - طلب زبون → فرع العراق');
+      } else if (isIraqBranchBaghdadArea) {
+        closestBranch = 'العراق';
+        print('✅ RemoteServices - منطقة بغداد ($billAddress) → فرع العراق');
       } else {
-        print('✅ RemoteServices - تم قراءة closestBranch من Firebase: $closestBranch');
+        closestBranch = await getUserClosestBranch() ?? '';
+        if (closestBranch.isEmpty) {
+          closestBranch = _determineClosestBranch(near.toString());
+          print('⚠️ RemoteServices - لا يوجد closestBranch محفوظ، تم الحساب من near: $closestBranch');
+        } else {
+          print('✅ RemoteServices - تم قراءة closestBranch من Firebase: $closestBranch');
+        }
       }
 
       final doc = await _db.collection('bills').add({
         'name': name,
         'phone': phone,
-        'city': city,
-        'address': address,
+        'city': billCity,
+        'address': billAddress,
         'price': price,
         'delivery': delivery,
         'items': items,
@@ -403,6 +472,7 @@ class RemoteServices {
         'nearpoint': nearpoint,
         'note': note,
         'near': near,
+        'userType': userType,
         'closestBranch': closestBranch,
         'status': 0,
         'orderstatus': 'قيد التحضير',

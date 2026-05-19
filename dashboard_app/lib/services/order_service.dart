@@ -33,6 +33,9 @@ class OrderService {
         }
       }
       
+      // طلبات الزبائن لها قسم مستقل، ولا تظهر في إدارة الطلبات العامة.
+      orders = orders.where((o) => !o.isCustomerOrder).toList();
+
       // ترتيب محلياً
       orders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       
@@ -70,6 +73,9 @@ class OrderService {
         }
       }
       
+      // طلبات الزبائن لها قسم مستقل، ولا تظهر في إدارة الطلبات العامة.
+      orders = orders.where((o) => !o.isCustomerOrder).toList();
+
       // ترتيب محلياً
       orders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       
@@ -295,6 +301,82 @@ class OrderService {
     return getOrdersByStatus(3, branch: branch);
   }
 
+  /// كل طلبات الزبائن — بدون قيد فرع (لقسم طلبات الزبائن)
+  static Future<List<OrderModel>> getCustomerOrders() async {
+    try {
+      final querySnapshot = await _db
+          .collection(_collection)
+          .where('userType', isEqualTo: 'زبون')
+          .get();
+
+      final orders = <OrderModel>[];
+      for (var doc in querySnapshot.docs) {
+        try {
+          final data = doc.data();
+          orders.add(OrderModel.fromFirestore(data, doc.id));
+        } catch (e) {
+          print('❌ خطأ في تحويل طلب زبون ${doc.id}: $e');
+        }
+      }
+      orders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      print('✅ OrderService - طلبات الزبائن: ${orders.length}');
+      return orders;
+    } catch (e) {
+      print('❌ OrderService - خطأ في جلب طلبات الزبائن: $e');
+      return [];
+    }
+  }
+
+  static Future<Map<String, int>> getCustomerOrderStats() async {
+    try {
+      final all = await getCustomerOrders();
+      return {
+        'total': all.length,
+        'preparing': all.where((o) => o.isPreparing).length,
+        'delivering': all.where((o) => o.isDelivering).length,
+        'delivered': all.where((o) => o.isDelivered).length,
+        'cancelled': all.where((o) => o.isCancelled).length,
+      };
+    } catch (e) {
+      return {
+        'total': 0,
+        'preparing': 0,
+        'delivering': 0,
+        'delivered': 0,
+        'cancelled': 0,
+      };
+    }
+  }
+
+  static StreamSubscription<QuerySnapshot>? listenToNewCustomerOrders({
+    required void Function(OrderModel order) onNewOrder,
+  }) {
+    DateTime? connectedAt;
+    return _db
+        .collection(_collection)
+        .where('userType', isEqualTo: 'زبون')
+        .snapshots()
+        .listen((snapshot) {
+      if (connectedAt == null) {
+        connectedAt = DateTime.now();
+        return;
+      }
+      for (var change in snapshot.docChanges) {
+        if (change.type == DocumentChangeType.added) {
+          try {
+            final data = change.doc.data();
+            if (data == null) continue;
+            final status = data['status'];
+            if (status != 0 && status != '0') continue;
+            onNewOrder(OrderModel.fromFirestore(data, change.doc.id));
+          } catch (e) {
+            print('❌ OrderService - طلب زبون جديد: $e');
+          }
+        }
+      }
+    });
+  }
+
   /// الاستماع الفوري للطلبات الجديدة - يُستدعى عند إضافة طلب جديد في Firebase
   /// يعيد StreamSubscription يمكن إلغاؤه عند تغيير الفرع
   static StreamSubscription<QuerySnapshot>? listenToNewOrders({
@@ -325,6 +407,7 @@ class OrderService {
             if (status != 0 && status != '0') continue; // جاري التجهيز فقط
             
             final order = OrderModel.fromFirestore(data, change.doc.id);
+            if (order.isCustomerOrder) continue;
             final branchName = order.closestBranch ?? branch;
             onNewOrder(order, branchName);
           } catch (e) {

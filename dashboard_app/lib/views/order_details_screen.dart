@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/order_model.dart';
 import '../utils/image_utils.dart';
+import '../utils/order_location_utils.dart';
 import '../widgets/order_status_dialog.dart';
 
 class OrderDetailsScreen extends StatelessWidget {
@@ -189,8 +190,12 @@ class OrderDetailsScreen extends StatelessWidget {
       children: [
         _buildInfoRow(Icons.badge_outlined, 'الاسم', order.name),
         _buildInfoRow(Icons.phone_android, 'رقم الهاتف', order.userPhone),
-        if (order.address.isNotEmpty)
-          _buildInfoRow(Icons.location_on_outlined, 'العنوان', '${order.address}، ${order.city}'),
+        if (formatOrderLocation(order.city, order.address).isNotEmpty)
+          _buildInfoRow(
+            Icons.location_on_outlined,
+            order.city.trim() == 'بغداد' ? 'بغداد والمنطقة' : 'المحافظة',
+            formatOrderLocation(order.city, order.address),
+          ),
         if (order.closestBranch != null && order.closestBranch!.isNotEmpty)
           _buildInfoRow(Icons.store, 'الفرع الأقرب', order.closestBranch!),
       ],

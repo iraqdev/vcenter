@@ -13,6 +13,7 @@ import 'views/notifications_management_screen.dart';
 import 'views/sliders_management_screen.dart';
 import 'views/categories_management_screen.dart';
 import 'views/customer_requests_screen.dart';
+import 'views/customer_orders_screen.dart';
 import 'controllers/user_controller.dart';
 import 'controllers/product_controller.dart';
 import 'controllers/category_controller.dart';
@@ -147,6 +148,7 @@ class DashboardApp extends StatelessWidget {
           GetPage(name: '/categories', page: () => CategoriesManagementScreen()),
           GetPage(name: '/new_users', page: () => NewUsersReviewScreen()),
           GetPage(name: '/customer_requests', page: () => CustomerRequestsScreen()),
+          GetPage(name: '/customer_orders', page: () => CustomerOrdersScreen()),
         ],
     );
   }

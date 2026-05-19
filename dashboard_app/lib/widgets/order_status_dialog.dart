@@ -6,10 +6,17 @@ import '../controllers/order_controller.dart';
 
 class OrderStatusDialog extends StatefulWidget {
   final OrderModel order;
+  final Future<bool> Function(
+    String orderId,
+    int newStatus,
+    String newOrderStatus, {
+    String? deliveryTime,
+  })? onUpdateStatus;
 
   const OrderStatusDialog({
     super.key,
     required this.order,
+    this.onUpdateStatus,
   });
 
   @override
@@ -477,12 +484,19 @@ class _OrderStatusDialogState extends State<OrderStatusDialog> {
         }
       }
       
-      final success = await orderController.updateOrderStatus(
-        widget.order.id,
-        selectedStatus,
-        selectedOption['label'],
-        deliveryTime: deliveryTime,
-      );
+      final success = widget.onUpdateStatus != null
+          ? await widget.onUpdateStatus!(
+              widget.order.id,
+              selectedStatus,
+              selectedOption['label'],
+              deliveryTime: deliveryTime,
+            )
+          : await orderController.updateOrderStatus(
+              widget.order.id,
+              selectedStatus,
+              selectedOption['label'],
+              deliveryTime: deliveryTime,
+            );
       
       print('OrderStatusDialog: نتيجة التحديث: $success');
       

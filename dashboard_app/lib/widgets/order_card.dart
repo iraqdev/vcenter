@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/order_model.dart';
+import '../utils/order_location_utils.dart';
 
 
 class OrderCard extends StatelessWidget {
@@ -122,18 +123,19 @@ class OrderCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // العنوان
-                if (order.address.isNotEmpty) ...[
+                // المحافظة / المنطقة
+                if (formatOrderLocation(order.city, order.address).isNotEmpty) ...[
                   Row(
                     children: [
                       Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
                       SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '${order.address}, ${order.city}',
+                          formatOrderLocation(order.city, order.address),
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,

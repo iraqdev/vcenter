@@ -4,6 +4,7 @@ import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:get/get.dart';
 import 'package:ecommerce/controllers/Favorite_controller.dart';
 import '../main.dart';
+import '../utils/price_utils.dart';
 class Favorites extends StatelessWidget {
    Favorites({super.key});
    final Favorite_controller controller = Get.find();
@@ -124,7 +125,7 @@ class Favorites extends StatelessWidget {
                ),
              ),
              spaceH(Get.height * 0.004),
-             Text('${  (sharedPreferences?.getInt('active') == 1) ? formatter.format(price) + '18'.tr  : '...' }' , textAlign: TextAlign.start,
+             Text(formatUserPriceLabel(price, suffix: '18'.tr), textAlign: TextAlign.start,
                overflow: TextOverflow.ellipsis,
                style: TextStyle(
                  fontWeight: FontWeight.w800,

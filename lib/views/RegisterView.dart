@@ -107,8 +107,8 @@ class RegisterView extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  _buildTabButton('تسجيل متجر', 0),
-                  _buildTabButton('تسجيل كزبون', 1),
+                  _buildTabButton('محل صيانة', 0),
+                  _buildTabButton('زبون', 1),
                 ],
               ),
             ),
@@ -271,6 +271,8 @@ class RegisterView extends StatelessWidget {
           _textme('الاسم', controller.customerName_, false),
           _space(Get.height * 0.02),
           _textme('رقم الهاتف', controller.customerPhone_, false),
+          _space(Get.height * 0.02),
+          _textme('كلمة المرور', controller.customerPassword_, true),
           _space(Get.height * 0.02),
           _textme('المنطقة/المحافظة', controller.customerAreaOrGovernorate_, false),
           _space(Get.height * 0.02),
@@ -771,7 +773,7 @@ class RegisterView extends StatelessWidget {
           ),
           child: Center(
             child: Text(
-              "إرسال الطلب",
+              "إنشاء الحساب",
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w600,

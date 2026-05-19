@@ -33,6 +33,7 @@ class OrderModel {
   final DateTime? updatedAt;
   final String? closestBranch; // الفرع الأقرب: الغزالية، الزعفرانية، الاعظمية، العراق
   final String? deliveryTime; // وقت التوصيل المتوقع
+  final String? userType; // زبون | متجر
 
   OrderModel({
     required this.id,
@@ -53,7 +54,10 @@ class OrderModel {
     this.updatedAt,
     this.closestBranch,
     this.deliveryTime,
+    this.userType,
   });
+
+  bool get isCustomerOrder => userType == 'زبون';
 
   factory OrderModel.fromFirestore(Map<String, dynamic> data, String id) {
     return OrderModel(
@@ -79,6 +83,7 @@ class OrderModel {
           : null,
       closestBranch: data['closestBranch'],
       deliveryTime: data['deliveryTime'],
+      userType: data['userType']?.toString(),
     );
   }
 
@@ -102,6 +107,7 @@ class OrderModel {
       'updatedAt': updatedAt,
       'closestBranch': closestBranch,
       'deliveryTime': deliveryTime,
+      'userType': userType,
     };
   }
 
@@ -124,6 +130,7 @@ class OrderModel {
     DateTime? updatedAt,
     String? closestBranch,
     String? deliveryTime,
+    String? userType,
   }) {
     return OrderModel(
       id: id ?? this.id,
@@ -144,6 +151,7 @@ class OrderModel {
       updatedAt: updatedAt ?? this.updatedAt,
       closestBranch: closestBranch ?? this.closestBranch,
       deliveryTime: deliveryTime ?? this.deliveryTime,
+      userType: userType ?? this.userType,
     );
   }
 

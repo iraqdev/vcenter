@@ -6,6 +6,7 @@ import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'dart:async';
 import '../controllers/Home_controller.dart';
 import '../main.dart';
+import '../utils/price_utils.dart';
 
 class SearchView extends StatefulWidget {
   const SearchView({super.key});
@@ -438,7 +439,7 @@ class _SearchViewState extends State<SearchView> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        '${(sharedPreferences?.getInt('active') == 1) ? _formatPrice(product.price) + ' دينار' : '...'}',
+                        formatUserPriceLabel(product.price, suffix: ' دينار'),
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,

@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 import '../controllers/RecentlyProducts_controller.dart';
 import '../main.dart';
+import '../utils/price_utils.dart';
 
 
 class RecentlyProducts extends StatelessWidget {
@@ -315,7 +316,7 @@ class RecentlyProducts extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        '${(sharedPreferences?.getInt('active') == 1) ? formatter.format(price) + ' ' + '18'.tr : '...'}',
+                        formatUserPriceLabel(price, suffix: ' ${'18'.tr}'),
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,

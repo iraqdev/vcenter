@@ -10,6 +10,7 @@ import 'package:ecommerce/controllers/Favorite_controller.dart';
 import 'package:ecommerce/controllers/Product_controller.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../main.dart';
+import '../utils/price_utils.dart';
 import '../utils/whatsapp_helper.dart';
 
 class ProductPage extends StatefulWidget {
@@ -493,7 +494,10 @@ class _ProductPageState extends State<ProductPage> {
         borderRadius: BorderRadius.circular(25),
       ),
       child: Text(
-        '${(sharedPreferences?.getInt('active') == 1) ? formatter.format(controller.productItemList[0].price) + ' ' + '18'.tr : '...'}',
+        formatUserPriceLabel(
+          controller.productItemList[0].price,
+          suffix: ' ${'18'.tr}',
+        ),
         style: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.bold,
@@ -654,7 +658,7 @@ class _ProductPageState extends State<ProductPage> {
                   onTap: () {
                     builder.putDate(
                       controller.productItemList[0].title,
-                      controller.productItemList[0].price,
+                      priceForUser(controller.productItemList[0].price),
                       controller.count,
                       controller.productItemList[0].id,
                       controller.productItemList[0].image,

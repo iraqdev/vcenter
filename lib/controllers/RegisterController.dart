@@ -11,9 +11,11 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:whatsapp_unilink/whatsapp_unilink.dart';
+import '../Bindings/Landing_bindings.dart';
 import '../Services/RemoteServices.dart';
+import '../main.dart';
+import '../utils/price_utils.dart';
+import '../views/Landing.dart';
 import '../views/MapPicker.dart';
 
 class RegisterController extends GetxController {
@@ -30,6 +32,7 @@ class RegisterController extends GetxController {
   late TextEditingController customerAreaOrGovernorate_ = TextEditingController();
   late TextEditingController customerRequestDetails_ = TextEditingController();
   late TextEditingController customerEmail_ = TextEditingController();
+  late TextEditingController customerPassword_ = TextEditingController();
   int selectedRegisterTab = 0;
   File? shopImageFile;
 
@@ -296,28 +299,6 @@ class RegisterController extends GetxController {
     }
   }
 
-  Future<void> _openWhatsAppSupport() async {
-    const supportMessage = 'مرحبا، أريد تفعيل حسابي في التطبيق.';
-    final appUri = WhatsAppUnilink(
-      phoneNumber: '07761620356',
-      text: supportMessage,
-    ).asUri();
-    try {
-      var ok = await launchUrl(appUri, mode: LaunchMode.externalApplication);
-      if (!ok) {
-        final webUri = Uri.parse(
-          'https://wa.me/9647761620356?text=${Uri.encodeComponent(supportMessage)}',
-        );
-        ok = await launchUrl(webUri, mode: LaunchMode.externalApplication);
-      }
-      if (!ok) {
-        Get.snackbar('خطأ', 'تعذر فتح واتساب على هذا الجهاز');
-      }
-    } catch (_) {
-      Get.snackbar('خطأ', 'تعذر فتح واتساب على هذا الجهاز');
-    }
-  }
-
   void changeRegisterTab(int index) {
     selectedRegisterTab = index;
     showLocationChoice = false;
@@ -458,26 +439,9 @@ class RegisterController extends GetxController {
         });
         
         isnot_loading();
-        Get.defaultDialog(
-          title: 'تم التسجيل',
-          titleStyle: TextStyle(fontWeight: FontWeight.bold),
-          middleText: 'يرجى مراسلة الدعم لتفعيل حسابك',
-          textConfirm: 'واتساب الدعم',
-          textCancel: 'لاحقاً',
-          confirmTextColor: Colors.white,
-          buttonColor: Colors.green,
-          onConfirm: () async {
-            Get.back();
-            await _openWhatsAppSupport();
-            await Future.delayed(const Duration(milliseconds: 400));
-            Get.offNamed('/');
-          },
-          onCancel: () {
-            Get.offNamed('/');
-          },
-        );
         shopImageFile = null;
         update();
+        Get.offNamed('/');
         } else if (json_response['message'] == "Phone number already in use") {
           errormsg =
               "رقم الهاتف مستخدم بالفعل. يرجى استخدام رقم هاتف آخر أو تسجيل الدخول إذا كان لديك حساب.";
@@ -519,6 +483,23 @@ class RegisterController extends GetxController {
     }
   }
 
+  Future<void> _persistSessionAndOpenApp(Map<String, dynamic> json) async {
+    await sharedPreferences!.setString('phone', json['phone']);
+    await sharedPreferences!.setInt('user_id', json['user_id']);
+    await sharedPreferences!.setString('near', json['near'] ?? '');
+    await sharedPreferences!.setInt('active', json['active']);
+    await sharedPreferences!.setString('name', json['username']);
+    await sharedPreferences!.setString(
+      'userType',
+      json['userType']?.toString() ?? kCustomerUserType,
+    );
+    Future.delayed(const Duration(seconds: 2), () {
+      _saveFcmTokenToFirebase(json['phone']);
+    });
+    isnot_loading();
+    Get.off(() => Landing(), binding: Landing_bindings());
+  }
+
   Future<void> submitCustomerRequest() async {
     clearError();
 
@@ -529,6 +510,11 @@ class RegisterController extends GetxController {
     }
     if (customerPhone_.text.trim().isEmpty) {
       errormsg = "يرجى إدخال رقم الهاتف.";
+      is_error();
+      return;
+    }
+    if (customerPassword_.text.trim().isEmpty) {
+      errormsg = "يرجى إدخال كلمة المرور.";
       is_error();
       return;
     }
@@ -550,6 +536,12 @@ class RegisterController extends GetxController {
       return;
     }
 
+    if (customerPassword_.text.trim().length < 6) {
+      errormsg = "كلمة المرور قصيرة. يجب أن تكون 6 أحرف على الأقل.";
+      is_error();
+      return;
+    }
+
     final email = customerEmail_.text.trim();
     if (email.isNotEmpty &&
         !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email)) {
@@ -558,39 +550,54 @@ class RegisterController extends GetxController {
       return;
     }
 
+    final phone = customerPhone_.text.trim();
+    final password = customerPassword_.text.trim();
+
     is_loading();
-    final response = await RemoteServices.submitCustomerRequest(
+    final response = await RemoteServices.registerCustomer(
       name: customerName_.text.trim(),
-      phone: customerPhone_.text.trim(),
+      phone: phone,
+      password: password,
       areaOrGovernorate: customerAreaOrGovernorate_.text.trim(),
       requestDetails: customerRequestDetails_.text.trim(),
       email: email.isEmpty ? null : email,
     );
 
-    if (response != null) {
-      final jsonResponse = jsonDecode(response);
-      if (jsonResponse['message'] == "Request Submitted Successfully") {
-        isnot_loading();
-        Get.snackbar(
-          'تم إرسال الطلب',
-          'تم إرسال معلوماتك إلى الإدارة بنجاح.',
-          backgroundColor: Colors.green,
-          colorText: Colors.white,
-          snackPosition: SnackPosition.TOP,
-        );
-        customerName_.clear();
-        customerPhone_.clear();
-        customerAreaOrGovernorate_.clear();
-        customerRequestDetails_.clear();
-        customerEmail_.clear();
-        update();
-      } else {
-        errormsg = "حدث خطأ أثناء إرسال الطلب. حاول مرة أخرى.";
-        is_error();
-        isnot_loading();
-      }
-    } else {
+    if (response == null) {
       errormsg = "فشل الاتصال. تحقق من الإنترنت وحاول مرة أخرى.";
+      is_error();
+      isnot_loading();
+      return;
+    }
+
+    final jsonResponse = jsonDecode(response);
+    if (jsonResponse['message'] == "Register Successfully") {
+      final loginResponse = await RemoteServices.login(phone, password);
+      if (loginResponse != null) {
+        final loginJson = jsonDecode(loginResponse);
+        if (loginJson['message'] == "Login Successfully") {
+          customerName_.clear();
+          customerPhone_.clear();
+          customerPassword_.clear();
+          customerAreaOrGovernorate_.clear();
+          customerRequestDetails_.clear();
+          customerEmail_.clear();
+          await _persistSessionAndOpenApp(
+            Map<String, dynamic>.from(loginJson),
+          );
+          return;
+        }
+      }
+      errormsg = "تم إنشاء الحساب لكن فشل تسجيل الدخول. جرّب تسجيل الدخول يدوياً.";
+      is_error();
+      isnot_loading();
+    } else if (jsonResponse['message'] == "Phone number already in use") {
+      errormsg =
+          "رقم الهاتف مستخدم. سجّل الدخول إن كان لديك حساب، أو استخدم رقماً آخر.";
+      is_error();
+      isnot_loading();
+    } else {
+      errormsg = "حدث خطأ أثناء إنشاء الحساب. حاول مرة أخرى.";
       is_error();
       isnot_loading();
     }
