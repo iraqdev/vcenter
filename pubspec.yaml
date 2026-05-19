@@ -45,7 +45,7 @@ dependencies:
   dart_jsonwebtoken: ^2.13.0
   loading_animation_widget: ^1.2.1
   intl: ^0.19.0
-  font_awesome_flutter: ^10.7.0
+  font_awesome_flutter: 11.0.0
   dropdown_button2: ^2.3.9
   easy_autocomplete: ^1.6.0
   firebase_messaging: ^16.0.2
