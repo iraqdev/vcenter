@@ -5,14 +5,12 @@ import 'package:ecommerce/controllers/Cart_controller.dart';
 import 'package:ecommerce/controllers/OrderStatusController.dart';
 import 'package:ecommerce/controllers/OrdersController.dart';
 import 'package:ecommerce/main.dart';
-
+import 'package:ecommerce/utils/delivery_utils.dart';
 
 class Checkout_controller extends GetxController {
   var isPay = false.obs;
   var isSubmittingOrder = false.obs;
   int price = 0;
-  int delivery_Baghdad = 4000;
-  int delivery_another = 4000;
   int delivery = 0;
   int profit = 0;
   int currentStep = 0;
@@ -22,6 +20,10 @@ class Checkout_controller extends GetxController {
   int fullTotal = 0;
   var name_agent;
   var near;
+  var nearpoint;
+  var isResolvingDelivery = true;
+
+  int get grandTotal => price + delivery;
 
   @override
   void onInit() {
@@ -30,10 +32,32 @@ class Checkout_controller extends GetxController {
     profit = total_user - price;
     user_phone = sharedPreferences?.getString('phone');
     name_agent = sharedPreferences!.getString('name')!;
-    near = sharedPreferences!.getString('near')!;
-    update();
-    // TODO: implement onInit
+    near = sharedPreferences!.getString('near') ?? '';
+    nearpoint = sharedPreferences!.getString('nearpoint') ?? '';
+    fullTotal = total_user;
     super.onInit();
+    _resolveDeliveryFee();
+  }
+
+  Future<void> _resolveDeliveryFee() async {
+    isResolvingDelivery = true;
+    update();
+    try {
+      final userType = sharedPreferences?.getString('userType') ?? '';
+      final city = sharedPreferences?.getString('city') ?? '';
+      final address = sharedPreferences?.getString('address') ?? '';
+      final branch = await RemoteServices.getUserClosestBranch();
+      delivery = deliveryFeeForUser(
+        userType: userType,
+        closestBranch: branch,
+        city: city,
+        address: address,
+      );
+      fullTotal = total_user + delivery;
+    } finally {
+      isResolvingDelivery = false;
+      update();
+    }
   }
 
   void ContinueStap() {

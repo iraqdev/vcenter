@@ -5,125 +5,216 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ecommerce/Services/RemoteServices.dart';
 import 'package:ecommerce/models/Bill.dart';
 import 'package:ecommerce/main.dart';
+import 'package:ecommerce/utils/cancelled_order_utils.dart';
 
 class OrdersController extends GetxController {
   var ordersList = <Bill>[].obs;
   var isLoading = false.obs;
+  var isRefreshing = false.obs;
   var selectedOrder = Rxn<Bill>();
-  Timer? _periodicTimer;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _ordersSub;
+  Timer? _purgeTimer;
+  bool _initialLoadDone = false;
 
   @override
   void onInit() {
     super.onInit();
-    fetchUserOrders();
-    // بدء التحديث التلقائي كل 30 ثانية
-    _startPeriodicUpdate();
+    _bootstrap();
   }
 
   @override
   void onClose() {
-    _periodicTimer?.cancel();
+    _ordersSub?.cancel();
+    _purgeTimer?.cancel();
     super.onClose();
   }
 
-  // بدء التحديث الدوري
-  void _startPeriodicUpdate() {
-    _periodicTimer = Timer.periodic(Duration(seconds: 30), (timer) {
-      if (!isClosed) {
-        fetchUserOrders();
-      }
+  Future<void> _bootstrap() async {
+    await fetchUserOrders(showLoading: true);
+    _listenToOrdersLive();
+    // تنظيف الطلبات الملغية القديمة بشكل دوري دون تعطيل الواجهة
+    _purgeTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+      RemoteServices.purgeExpiredCancelledOrders();
     });
   }
 
-  // جلب جميع طلبات المستخدم
-  Future<void> fetchUserOrders() async {
+  /// استماع مباشر لتغيّر الطلبات في Firestore (بدون انتظار سحب أو مؤقت).
+  void _listenToOrdersLive() {
+    final phone = sharedPreferences?.getString('phone');
+    if (phone == null || phone.isEmpty) return;
+
+    _ordersSub?.cancel();
+    _ordersSub = FirebaseFirestore.instance
+        .collection('bills')
+        .where('user_phone', isEqualTo: phone)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .listen(
+      (snap) {
+        if (isClosed) return;
+        _applySnapshot(snap);
+      },
+      onError: (e) {
+        print('❌ OrdersController live listen: $e');
+        // في حال فشل الـ index/الاستماع نرجع للجلب اليدوي
+        fetchUserOrders(showLoading: false);
+      },
+    );
+  }
+
+  void _applySnapshot(QuerySnapshot<Map<String, dynamic>> snap) {
     try {
-      isLoading.value = true;
+      final now = DateTime.now();
+      final filtered = <Bill>[];
+
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final bill = _billFromFirestore(data);
+        if (bill == null) continue;
+
+        if (bill.orderstatus == 'ملغي') {
+          DateTime? cancelledAt;
+          if (bill.cancelledAt != null && bill.cancelledAt!.isNotEmpty) {
+            cancelledAt = DateTime.tryParse(bill.cancelledAt!);
+          }
+          cancelledAt ??= DateTime.tryParse(bill.date);
+          if (cancelledAt != null &&
+              now.difference(cancelledAt) >= cancelledOrderRetention) {
+            // حذف في الخلفية دون حجب الواجهة
+            RemoteServices.deleteCancelledOrder(bill.id);
+            continue;
+          }
+        }
+        filtered.add(bill);
+      }
+
+      ordersList.value = filtered;
+      _initialLoadDone = true;
+      isLoading.value = false;
+      isRefreshing.value = false;
+      update();
+    } catch (e) {
+      print('❌ OrdersController _applySnapshot: $e');
+    }
+  }
+
+  Bill? _billFromFirestore(Map<String, dynamic> data) {
+    try {
+      final map = {
+        'id': data['originalId'] ?? 0,
+        'name': data['name'] ?? '',
+        'phone': data['phone'] ?? '',
+        'city': data['city'] ?? '',
+        'address': data['address'] ?? '',
+        'status': data['status'] ?? 0,
+        'date': (data['createdAt'] is Timestamp)
+            ? (data['createdAt'] as Timestamp).toDate().toIso8601String()
+            : (data['date'] ?? ''),
+        'price': data['price'] ?? 0,
+        'delivery': data['delivery'] ?? 0,
+        'user_id': 0,
+        'nearpoint': data['nearpoint'],
+        'note': data['note'],
+        'orderstatus': data['orderstatus'] ?? 'جاري التجهيز',
+        'items': data['items'] ?? [],
+        'closestBranch': data['closestBranch'],
+        'deliveryTime': data['deliveryTime'],
+        'customerMessage': data['customerMessage']?.toString(),
+        'deliveryDurationMinutes': data['deliveryDurationMinutes'],
+        'deliveryDeadlineAt': (data['deliveryDeadlineAt'] is Timestamp)
+            ? (data['deliveryDeadlineAt'] as Timestamp)
+                .toDate()
+                .toIso8601String()
+            : data['deliveryDeadlineAt']?.toString(),
+        'cancelledAt': (data['cancelledAt'] is Timestamp)
+            ? (data['cancelledAt'] as Timestamp).toDate().toIso8601String()
+            : null,
+      };
+      return Bill.fromJson(map);
+    } catch (e) {
+      print('❌ OrdersController _billFromFirestore: $e');
+      return null;
+    }
+  }
+
+  /// جلب الطلبات.
+  /// [showLoading] = true فقط عند الفتح الأول حتى لا تختفي القائمة أثناء التحديث.
+  Future<void> fetchUserOrders({bool showLoading = true}) async {
+    try {
       final phone = sharedPreferences?.getString('phone');
-      print('🔍 OrdersController - رقم الهاتف: $phone');
-      
-      if (phone == null) {
+      if (phone == null || phone.isEmpty) {
         print('❌ OrdersController - لا يوجد رقم هاتف');
+        isLoading.value = false;
         return;
       }
 
-      print('📞 OrdersController - جلب الطلبات لرقم: $phone');
+      if (showLoading && !_initialLoadDone) {
+        isLoading.value = true;
+      } else {
+        isRefreshing.value = true;
+      }
+
+      await RemoteServices.purgeExpiredCancelledOrders();
       final orders = await RemoteServices.fetchBills(phone);
-      
+
       if (orders != null) {
-        print('✅ OrdersController - تم جلب ${orders.length} طلب');
-        
-        // تصفية الطلبات الملغاة القديمة (أكثر من 3 أيام)
         final filteredOrders = <Bill>[];
         final now = DateTime.now();
-        
+
         for (final order in orders) {
           if (order.orderstatus == 'ملغي') {
-            // تحقق من تاريخ الإلغاء
-            try {
-              final cancelledDate = DateTime.parse(order.date);
-              final daysDifference = now.difference(cancelledDate).inDays;
-              
-              if (daysDifference >= 3) {
-                print('🗑️ OrdersController - حذف طلب ملغي قديم: ${order.id} (${daysDifference} يوم)');
-                // حذف الطلب من Firebase
-                await RemoteServices.deleteCancelledOrder(order.id);
-                continue; // لا تضيفه للقائمة
-              }
-            } catch (e) {
-              print('⚠️ OrdersController - خطأ في تحليل تاريخ الطلب: $e');
+            DateTime? cancelledAt;
+            if (order.cancelledAt != null && order.cancelledAt!.isNotEmpty) {
+              cancelledAt = DateTime.tryParse(order.cancelledAt!);
+            }
+            cancelledAt ??= DateTime.tryParse(order.date);
+            if (cancelledAt != null &&
+                now.difference(cancelledAt) >= cancelledOrderRetention) {
+              await RemoteServices.deleteCancelledOrder(order.id);
+              continue;
             }
           }
           filteredOrders.add(order);
         }
-        
-        print('📊 OrdersController - الطلبات بعد التصفية: ${filteredOrders.length}');
-        
-        // طباعة تفاصيل الطلبات المحولة
-        for (int i = 0; i < filteredOrders.length; i++) {
-          final order = filteredOrders[i];
-          print('📋 OrdersController - الطلب ${i + 1}:');
-          print('   - ID: ${order.id}');
-          print('   - Name: ${order.name}');
-          print('   - Phone: ${order.phone}');
-          print('   - Price: ${order.price}');
-          print('   - Status: ${order.status}');
-          print('   - OrderStatus: ${order.orderstatus}');
-        }
-        
+
         ordersList.value = filteredOrders;
-        print('📊 OrdersController - الطلبات المعلقة: $pendingOrdersCount');
-        update(); // تحديث الواجهة لتحديث العداد الأخضر
-      } else {
-        print('❌ OrdersController - لم يتم جلب أي طلبات');
+        _initialLoadDone = true;
+        update();
       }
     } catch (e) {
       print('❌ OrdersController - خطأ في جلب الطلبات: $e');
-      Get.snackbar(
-        'خطأ',
-        'حدث خطأ في جلب الطلبات',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      if (!_initialLoadDone) {
+        Get.snackbar(
+          'خطأ',
+          'حدث خطأ في جلب الطلبات',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+      }
     } finally {
       isLoading.value = false;
+      isRefreshing.value = false;
     }
   }
 
-  // تحديث الطلبات
   Future<void> refreshOrders() async {
-    await fetchUserOrders();
+    await fetchUserOrders(showLoading: false);
   }
 
-  // تحديد طلب معين لعرض تفاصيله
   void selectOrder(Bill order) {
     selectedOrder.value = order;
   }
 
-  // الحصول على لون حالة الطلب
+  String _normalizeStatus(String? status) {
+    final s = (status ?? '').trim();
+    if (s == 'قيد التحضير') return 'جاري التجهيز';
+    if (s == 'تم التوصيل') return 'تم الاستلام';
+    return s;
+  }
+
   Color getStatusColor(String? status) {
-    switch (status) {
+    switch (_normalizeStatus(status)) {
       case 'جاري التجهيز':
         return Colors.orange;
       case 'جاري التوصيل':
@@ -137,15 +228,14 @@ class OrdersController extends GetxController {
     }
   }
 
-  // الحصول على أيقونة حالة الطلب
   IconData getStatusIcon(String? status) {
-    switch (status) {
+    switch (_normalizeStatus(status)) {
       case 'جاري التجهيز':
         return Icons.access_time;
       case 'جاري التوصيل':
-        return Icons.check_circle_outline;
-      case 'تم الاستلام':
         return Icons.delivery_dining;
+      case 'تم الاستلام':
+        return Icons.check_circle_outline;
       case 'ملغي':
         return Icons.cancel;
       default:
@@ -153,10 +243,8 @@ class OrdersController extends GetxController {
     }
   }
 
-  // تنسيق التاريخ
   String formatDate(String? dateString) {
     if (dateString == null || dateString.isEmpty) return 'غير محدد';
-    
     try {
       final date = DateTime.parse(dateString);
       return '${date.day}/${date.month}/${date.year}';
@@ -165,10 +253,8 @@ class OrdersController extends GetxController {
     }
   }
 
-  // تنسيق الوقت
   String formatTime(String? dateString) {
     if (dateString == null || dateString.isEmpty) return 'غير محدد';
-    
     try {
       final date = DateTime.parse(dateString);
       return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
@@ -177,45 +263,44 @@ class OrdersController extends GetxController {
     }
   }
 
-  // حساب إجمالي الطلب
   double calculateTotal(Bill order) {
-    return ((order.price ?? 0) + (order.delivery ?? 0)).toDouble();
+    return ((order.price) + (order.delivery)).toDouble();
   }
 
-  // حساب عدد الطلبات غير المسلمة (غير "تم الاستلام" و "ملغي")
   int get pendingOrdersCount {
-    return ordersList.where((order) => 
-      order.orderstatus != 'تم الاستلام' && order.orderstatus != 'ملغي'
-    ).length;
+    return ordersList.where((order) {
+      final s = _normalizeStatus(order.orderstatus);
+      return s != 'تم الاستلام' && s != 'ملغي';
+    }).length;
   }
 
-  // حساب عدد الطلبات الجديدة (جاري التجهيز)
   int get newOrdersCount {
-    return ordersList.where((order) => order.orderstatus == 'جاري التجهيز').length;
+    return ordersList
+        .where((order) => _normalizeStatus(order.orderstatus) == 'جاري التجهيز')
+        .length;
   }
 
-  // تحديث حالة طلب معين
   Future<void> updateOrderStatus(String orderId, String newStatus) async {
     try {
-      // تحديث في Firebase
+      final idInt = int.tryParse(orderId) ?? 0;
       final query = await FirebaseFirestore.instance
           .collection('bills')
-          .where('id', isEqualTo: orderId)
+          .where('originalId', isEqualTo: idInt)
           .limit(1)
           .get();
-      
+
       if (query.docs.isNotEmpty) {
         await query.docs.first.reference.update({
           'orderstatus': newStatus,
           'updatedAt': FieldValue.serverTimestamp(),
         });
-        
-        // تحديث القائمة المحلية
-        final orderIndex = ordersList.indexWhere((order) => order.id == orderId);
+
+        final orderIndex =
+            ordersList.indexWhere((order) => order.id.toString() == orderId);
         if (orderIndex != -1) {
           ordersList[orderIndex].orderstatus = newStatus;
-          ordersList.refresh(); // تحديث الـ UI
-          update(); // تحديث العداد الأخضر
+          ordersList.refresh();
+          update();
         }
       }
     } catch (e) {

@@ -7,6 +7,7 @@ import 'package:ecommerce/main.dart';
 import 'package:ecommerce/views/Landing.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ecommerce/services/dnz_push_service.dart';
 
 class Login_controller extends GetxController {
   //variable for check Remember me
@@ -59,6 +60,7 @@ class Login_controller extends GetxController {
           });
           
           print('تم حفظ FCM token للمستخدم: $phone');
+          await DnzPushService.registerCustomer(phone);
         }
       }
     } catch (e) {
@@ -116,7 +118,12 @@ class Login_controller extends GetxController {
             print(json_response);
             await sharedPreferences!.setString('phone', json_response['phone']);
             await sharedPreferences!.setInt('user_id', json_response['user_id']);
-            await sharedPreferences!.setString('near', json_response['near']);
+            await sharedPreferences!.setString('near', json_response['near'] ?? '');
+            await sharedPreferences!.setString(
+                'nearpoint', json_response['nearpoint'] ?? '');
+            await sharedPreferences!.setString('city', json_response['city'] ?? '');
+            await sharedPreferences!.setString(
+                'address', json_response['address'] ?? '');
             await sharedPreferences!.setInt('active', json_response['active']);
             await sharedPreferences!.setString('name', json_response['username']);
             await sharedPreferences!.setString(

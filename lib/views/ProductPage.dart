@@ -119,31 +119,32 @@ class _ProductPageState extends State<ProductPage> {
         onPressed: () => Get.back(),
       ),
       actions: [
-        Container(
-          margin: EdgeInsets.only(right: 16),
-          child: InkWell(
-            onTap: openWhatsapp,
-            child: Container(
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.green,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.green.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: FaIcon(
-                FontAwesomeIcons.whatsapp,
-                color: Colors.white,
-                size: 20,
+        if (!isCustomerUser)
+          Container(
+            margin: EdgeInsets.only(right: 16),
+            child: InkWell(
+              onTap: openWhatsapp,
+              child: Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.green.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: FaIcon(
+                  FontAwesomeIcons.whatsapp,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
             ),
           ),
-        ),
       ],
       title: GetBuilder<Product_controller>(
         builder: (c) {
@@ -497,6 +498,7 @@ class _ProductPageState extends State<ProductPage> {
         formatUserPriceLabel(
           controller.productItemList[0].price,
           suffix: ' ${'18'.tr}',
+          customerPrice: controller.productItemList[0].customerPrice,
         ),
         style: TextStyle(
           fontSize: 20,
@@ -658,7 +660,11 @@ class _ProductPageState extends State<ProductPage> {
                   onTap: () {
                     builder.putDate(
                       controller.productItemList[0].title,
-                      priceForUser(controller.productItemList[0].price),
+                      priceForUser(
+                        controller.productItemList[0].price,
+                        customerPrice:
+                            controller.productItemList[0].customerPrice,
+                      ),
                       controller.count,
                       controller.productItemList[0].id,
                       controller.productItemList[0].image,

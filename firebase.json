@@ -2,5 +2,19 @@
   "functions": {
     "source": "functions",
     "predeploy": []
+  },
+  "hosting": {
+    "public": "sells-dash/build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
   }
 }

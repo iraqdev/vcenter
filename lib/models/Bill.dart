@@ -24,7 +24,11 @@ class Bill {
   String? orderstatus; // حالة الطلب الجديدة
   List<Map<String, dynamic>>? items; // تفاصيل المنتجات
   String? closestBranch; // الفرع الأقرب: الغزالية، الزعفرانية، الاعظمية، العراق
-  String? deliveryTime; // وقت التوصيل المتوقع
+  String? deliveryTime; // نص مدة التوصيل
+  String? customerMessage; // قديم
+  int? deliveryDurationMinutes;
+  String? deliveryDeadlineAt; // ISO
+  String? cancelledAt; // وقت الإلغاء ISO
 
   Bill({
     required this.id,
@@ -43,6 +47,10 @@ class Bill {
     this.items,
     this.closestBranch,
     this.deliveryTime,
+    this.customerMessage,
+    this.deliveryDurationMinutes,
+    this.deliveryDeadlineAt,
+    this.cancelledAt,
   });
 
   factory Bill.fromJson(Map<String, dynamic> json) => Bill(
@@ -62,6 +70,12 @@ class Bill {
     items: json["items"] != null ? List<Map<String, dynamic>>.from(json["items"]) : null,
     closestBranch: json["closestBranch"],
     deliveryTime: json["deliveryTime"],
+    customerMessage: json["customerMessage"],
+    deliveryDurationMinutes: json["deliveryDurationMinutes"] != null
+        ? _parseInt(json["deliveryDurationMinutes"])
+        : null,
+    deliveryDeadlineAt: json["deliveryDeadlineAt"]?.toString(),
+    cancelledAt: json["cancelledAt"],
   );
 
   // دالة مساعدة لتحويل String إلى int بأمان
@@ -91,5 +105,9 @@ class Bill {
     "items": items,
     "closestBranch": closestBranch,
     "deliveryTime": deliveryTime,
+    "customerMessage": customerMessage,
+    "deliveryDurationMinutes": deliveryDurationMinutes,
+    "deliveryDeadlineAt": deliveryDeadlineAt,
+    "cancelledAt": cancelledAt,
   };
 }

@@ -301,6 +301,7 @@ class Home extends StatelessWidget {
           product.title,
           product.price,
           product.id,
+          customerPrice: product.customerPrice,
         );
       },
     );
@@ -312,8 +313,9 @@ class Home extends StatelessWidget {
     String url,
     String title,
     int price,
-    int id,
-  ) {
+    int id, {
+    int? customerPrice,
+  }) {
     return GestureDetector(
       onTap: () {
         Get.toNamed(
@@ -416,7 +418,7 @@ class Home extends StatelessWidget {
                         borderRadius: BorderRadius.circular(15),
                       ),
                       child: Text(
-                        '${formatUserPriceLabel(price, suffix: ' ${'18'.tr}')} ',
+                        '${formatUserPriceLabel(price, suffix: ' ${'18'.tr}', customerPrice: customerPrice)} ',
                         style: TextStyle(
                           fontSize: Get.width * 0.028,
                           fontWeight: FontWeight.w700,

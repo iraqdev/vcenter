@@ -14,6 +14,7 @@ class Product {
   int id;
   String title;
   int price;
+  int? customerPrice;
   String description;
   String image;
   int category;
@@ -23,6 +24,7 @@ class Product {
       {required this.id,
       required this.title,
       required this.price,
+      this.customerPrice,
       required this.description,
       required this.image,
       required this.category,
@@ -33,6 +35,11 @@ class Product {
         title: json["title"],
         price:
             json["price"] is String ? int.parse(json["price"]) : json["price"],
+        customerPrice: json["customerPrice"] == null
+            ? null
+            : (json["customerPrice"] is String
+                ? int.tryParse(json["customerPrice"])
+                : json["customerPrice"] as int?),
         description: json["description"],
         image: json["image"],
         category: json["category"] is String
@@ -47,6 +54,7 @@ class Product {
         "id": id,
         "title": title,
         "price": price,
+        "customerPrice": customerPrice,
         "description": description,
         "image": image,
         "category": category,

@@ -274,11 +274,9 @@ class RegisterView extends StatelessWidget {
           _space(Get.height * 0.02),
           _textme('كلمة المرور', controller.customerPassword_, true),
           _space(Get.height * 0.02),
-          _textme('المنطقة/المحافظة', controller.customerAreaOrGovernorate_, false),
+          _selectCustomerGovernorate(),
           _space(Get.height * 0.02),
-          _textme('البريد الإلكتروني (اختياري)', controller.customerEmail_, false),
-          _space(Get.height * 0.02),
-          _textme('اشرح طلبك', controller.customerRequestDetails_, false, maxLines: 4),
+          _textme('أقرب نقطة دالة', controller.customerLandmark_, false),
         ],
       ),
     );
@@ -396,6 +394,78 @@ class RegisterView extends StatelessWidget {
 
   SizedBox _space(double size) {
     return SizedBox(height: size);
+  }
+
+  Widget _selectCustomerGovernorate() {
+    return GetBuilder<RegisterController>(
+      builder: (builder) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: Colors.grey[300]!),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton2<String>(
+              dropdownStyleData: DropdownStyleData(
+                maxHeight: 200,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: Offset(0, 5),
+                    ),
+                  ],
+                ),
+              ),
+              isExpanded: true,
+              hint: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'اختر المحافظة',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[500],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              items: builder.gonvernorates
+                  .map(
+                    (String item) => DropdownMenuItem<String>(
+                      value: item,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          item,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+              value: builder.customerSelectedGovernorate,
+              onChanged: builder.changeCustomerGovernorate,
+              buttonStyleData: ButtonStyleData(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                decoration: BoxDecoration(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+              ),
+              menuItemStyleData: MenuItemStyleData(height: 50),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Widget _select() {
@@ -588,13 +658,10 @@ class RegisterView extends StatelessWidget {
         return Icons.phone_outlined;
       case 'كلمة المرور':
         return Icons.lock_outline;
+      case 'أقرب نقطة دالة':
       case 'اسم المنطقة':
       case 'المنطقة/المحافظة':
         return Icons.location_on_outlined;
-      case 'البريد الإلكتروني (اختياري)':
-        return Icons.alternate_email;
-      case 'اشرح طلبك':
-        return Icons.description_outlined;
       default:
         return Icons.edit_outlined;
     }

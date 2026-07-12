@@ -16,7 +16,6 @@ class CartPage extends StatelessWidget {
       bottomNavigationBar: GetBuilder<Cart_controller>(
         builder: (builder) {
           return Container(
-            height: Get.width * 0.2,
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
@@ -30,128 +29,165 @@ class CartPage extends StatelessWidget {
             ),
             margin: EdgeInsets.only(bottom: 20),
             padding: EdgeInsets.all(Get.width * 0.04),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // زر الدفع
-                GetBuilder<Cart_controller>(
-                  builder: (builder) {
-                    return GestureDetector(
-                      onTap: () {
-                        if (BoxCart.isNotEmpty) {
-                          if (sharedPreferences!.getString('phone') != null) {
-                            Get.toNamed(
-                              'checkout',
-                              arguments: [
-                                {
-                                  'total': builder.total,
-                                  'totalUser': builder.total,
-                                },
+                if (BoxCart.isNotEmpty)
+                  Padding(
+                    padding: EdgeInsets.only(bottom: Get.width * 0.025),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'المجموع: ',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: Get.width * 0.032,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Text(
+                          '${formatter.format(builder.total)} ${'18'.tr}',
+                          style: TextStyle(
+                            color: Colors.deepPurple,
+                            fontSize: Get.width * 0.038,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                Row(
+                  children: [
+                    // زر دفع أونلاين
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          if (builder.isCreatingOnlinePayment) return;
+                          builder.payOnline();
+                        },
+                        child: Container(
+                          height: Get.width * 0.11,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.teal.shade600,
+                                Colors.teal.shade400,
                               ],
-                            );
-                          } else {
-                            Get.snackbar(
-                              'عذرا',
-                              'يجب عليك تسجيل الدخول',
-                              colorText: Colors.white,
-                              backgroundColor: Colors.red,
-                            );
-                          }
-                        }
-                      },
-                      child: Container(
-                        height: Get.width * 0.1,
-                        width: Get.width * 0.32,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.deepPurple,
-                              Colors.deepPurple.withOpacity(0.8),
+                            ),
+                            borderRadius: BorderRadius.circular(15),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.teal.withOpacity(0.3),
+                                spreadRadius: 1,
+                                blurRadius: 5,
+                                offset: Offset(0, 2),
+                              ),
                             ],
                           ),
-                          borderRadius: BorderRadius.circular(15),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.deepPurple.withOpacity(0.3),
-                              spreadRadius: 1,
-                              blurRadius: 5,
-                              offset: Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.shopping_cart_checkout,
-                                color: Colors.white,
-                                size: Get.width * 0.04,
-                              ),
-                              SizedBox(width: Get.width * 0.02),
-                              Text(
-                                '31'.tr,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: Get.width * 0.035,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
+                          child: Center(
+                            child: builder.isCreatingOnlinePayment
+                                ? SizedBox(
+                                    width: Get.width * 0.05,
+                                    height: Get.width * 0.05,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.payment,
+                                        color: Colors.white,
+                                        size: Get.width * 0.04,
+                                      ),
+                                      SizedBox(width: Get.width * 0.015),
+                                      Text(
+                                        'دفع أونلاين',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: Get.width * 0.032,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                           ),
                         ),
                       ),
-                    );
-                  },
-                ),
-                // عرض السعر
-                GetBuilder<Cart_controller>(
-                  builder: (builder) {
-                    if (BoxCart.isNotEmpty) {
-                      return Container(
-                        height: Get.width * 0.1,
-                        width: Get.width * 0.32,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.deepPurple.withOpacity(0.1),
-                              Colors.blue.withOpacity(0.05),
+                    ),
+                    SizedBox(width: Get.width * 0.03),
+                    // زر اتمام الشراء (المسار الحالي)
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          if (BoxCart.isNotEmpty) {
+                            if (sharedPreferences!.getString('phone') != null) {
+                              Get.toNamed(
+                                'checkout',
+                                arguments: [
+                                  {
+                                    'total': builder.total,
+                                    'totalUser': builder.total,
+                                  },
+                                ],
+                              );
+                            } else {
+                              Get.snackbar(
+                                'عذرا',
+                                'يجب عليك تسجيل الدخول',
+                                colorText: Colors.white,
+                                backgroundColor: Colors.red,
+                              );
+                            }
+                          }
+                        },
+                        child: Container(
+                          height: Get.width * 0.11,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.deepPurple,
+                                Colors.deepPurple.withOpacity(0.8),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(15),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.deepPurple.withOpacity(0.3),
+                                spreadRadius: 1,
+                                blurRadius: 5,
+                                offset: Offset(0, 2),
+                              ),
                             ],
                           ),
-                          borderRadius: BorderRadius.circular(15),
-                          border: Border.all(
-                            color: Colors.deepPurple.withOpacity(0.2),
-                            width: 1,
+                          child: Center(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.shopping_cart_checkout,
+                                  color: Colors.white,
+                                  size: Get.width * 0.04,
+                                ),
+                                SizedBox(width: Get.width * 0.015),
+                                Text(
+                                  '31'.tr,
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: Get.width * 0.032,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'المجموع',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: Get.width * 0.025,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            SizedBox(height: Get.width * 0.003),
-                            Text(
-                              formatter.format(builder.total) + ' ' + '18'.tr,
-                              style: TextStyle(
-                                color: Colors.deepPurple,
-                                fontSize: Get.width * 0.035,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    } else {
-                      return SizedBox();
-                    }
-                  },
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

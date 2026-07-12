@@ -208,6 +208,7 @@ class RecentlyProducts extends StatelessWidget {
                   product.title,
                   product.price,
                   product.id,
+                  customerPrice: product.customerPrice,
                 );
               }
             },
@@ -217,7 +218,13 @@ class RecentlyProducts extends StatelessWidget {
     );
   }
 
-  Widget _buildProductCard(String url, String title, int price, int id) {
+  Widget _buildProductCard(
+    String url,
+    String title,
+    int price,
+    int id, {
+    int? customerPrice,
+  }) {
     return GestureDetector(
       onTap: () {
         Get.toNamed(
@@ -316,7 +323,11 @@ class RecentlyProducts extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        formatUserPriceLabel(price, suffix: ' ${'18'.tr}'),
+                        formatUserPriceLabel(
+                          price,
+                          suffix: ' ${'18'.tr}',
+                          customerPrice: customerPrice,
+                        ),
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,

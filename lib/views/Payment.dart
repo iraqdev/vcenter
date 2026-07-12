@@ -14,7 +14,12 @@ class Payment extends StatelessWidget {
         children: [
           GetBuilder<Checkout_controller>(
             builder: (builder) {
-              return order(builder.price, builder.total_user, builder.profit);
+              return order(
+                builder.price,
+                builder.total_user,
+                builder.profit,
+                builder.delivery,
+              );
             },
           ),
         ],
@@ -22,7 +27,7 @@ class Payment extends StatelessWidget {
     );
   }
 
-  order(price, total_user, profit) {
+  order(price, total_user, profit, delivery) {
     return Container(
       margin: EdgeInsets.all(Get.width * 0.04),
       padding: EdgeInsets.all(Get.width * 0.04),
@@ -88,10 +93,24 @@ class Payment extends StatelessWidget {
             ),
           ),
 
-          // المجموع الكلي
+          // المجموع الفرعي
+          _buildPriceRow(
+            'سعر المنتجات',
+            '${formatter.format(price)} ${'18'.tr}',
+            false,
+          ),
+          if (delivery > 0) ...[
+            spaceH(Get.height * 0.012),
+            _buildPriceRow(
+              'رسوم التوصيل (فرع العراق)',
+              '${formatter.format(delivery)} ${'18'.tr}',
+              false,
+            ),
+          ],
+          spaceH(Get.height * 0.012),
           _buildPriceRow(
             '${'49'.tr} : ',
-            '${formatter.format(price)} ${'18'.tr}',
+            '${formatter.format(price + delivery)} ${'18'.tr}',
             true,
           ),
         ],

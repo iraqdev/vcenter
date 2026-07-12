@@ -70,6 +70,8 @@ class Login extends StatelessWidget {
                   },
                 ),
                 _space(Get.height * 0.02),
+                _buildForgotPasswordLink(),
+                _space(Get.height * 0.02),
                 _text(
                   'ليس لديك حساب؟',
                   Get.height * 0.013,
@@ -82,6 +84,26 @@ class Login extends StatelessWidget {
                 _buildGuestLink(),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildForgotPasswordLink() {
+    return GestureDetector(
+      onTap: () {
+        Get.toNamed('/forgot-password');
+      },
+      child: Center(
+        child: Text(
+          'نسيت كلمة السر؟',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: Get.height * 0.015,
+            fontWeight: FontWeight.w500,
+            decoration: TextDecoration.underline,
+            decorationColor: Colors.white70,
           ),
         ),
       ),

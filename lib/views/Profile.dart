@@ -768,33 +768,47 @@ class Profile extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // معلومات الفريق
-                          _buildInfoCardWithColor(
-                            icon: Icons.business_rounded,
-                            title: 'الشركة المبرمجة',
-                            value: 'DNZ TEAM LTD',
-                            color: Colors.blue,
+                          // القسم 1: مدير التطبيق والمبيعات
+                          _buildContactSectionBox(
+                            headerIcon: Icons.storefront_rounded,
+                            headerTitle: 'مدير التطبيق والمبيعات',
+                            headerColor: Colors.teal,
+                            rows: const [
+                              (
+                                Icons.phone_rounded,
+                                'رقم هاتف المبيعات',
+                                '+9647761620356',
+                              ),
+                            ],
+                            note:
+                                'لشراء قطع الغيار او الاستفسار يرجى التواصل معنا',
                           ),
-                          SizedBox(height: 12),
-                          _buildInfoCardWithColor(
-                            icon: Icons.phone_rounded,
-                            title: 'هاتف الشركة المبرمجة',
-                            value: '+9647878783591',
-                            color: Colors.green,
-                          ),
-                          SizedBox(height: 12),
-                          _buildInfoCardWithColor(
-                            icon: Icons.phone_rounded,
-                            title: 'مدير التطبيق والمبيعات',
-                            value: '+9647761620356',
-                            color: Colors.teal,
-                          ),
-                          SizedBox(height: 12),
-                          _buildInfoCardWithColor(
-                            icon: Icons.facebook_rounded,
-                            title: 'صفحة الفيسبوك',
-                            value: 'DNZTeam',
-                            color: Colors.indigo,
+
+                          SizedBox(height: 16),
+
+                          // القسم 2: الشركة المبرمجة
+                          _buildContactSectionBox(
+                            headerIcon: Icons.business_rounded,
+                            headerTitle: 'الشركة المبرمجة',
+                            headerColor: Colors.indigo,
+                            rows: const [
+                              (
+                                Icons.apartment_rounded,
+                                'الشركة المبرمجة',
+                                'DNZ TEAM LTD',
+                              ),
+                              (
+                                Icons.phone_rounded,
+                                'رقم الهاتف',
+                                '+9647878783591',
+                              ),
+                              (
+                                Icons.facebook_rounded,
+                                'صفحة الفيسبوك',
+                                'DNZTeam',
+                              ),
+                            ],
+                            note: 'لطلب صناعة تطبيقات يرجى التواصل معنا',
                           ),
                           
                           SizedBox(height: 24),
@@ -977,6 +991,95 @@ class Profile extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildContactSectionBox({
+    required IconData headerIcon,
+    required String headerTitle,
+    required Color headerColor,
+    required List<(IconData icon, String title, String value)> rows,
+    required String note,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: headerColor.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: headerColor.withOpacity(0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: headerColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(headerIcon, color: headerColor, size: 22),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  headerTitle,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: headerColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 14),
+          ...rows.map((row) {
+            final icon = row.$1;
+            final title = row.$2;
+            final value = row.$3;
+            return Padding(
+              padding: EdgeInsets.only(bottom: 10),
+              child: _buildInfoCardWithColor(
+                icon: icon,
+                title: title,
+                value: value,
+                color: headerColor,
+              ),
+            );
+          }),
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: headerColor.withOpacity(0.15)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.info_outline_rounded, size: 18, color: headerColor),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    note,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.4,
+                      color: Colors.grey[800],
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.right,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

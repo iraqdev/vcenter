@@ -36,9 +36,9 @@ class _OrdersScreenState extends State<OrdersScreen> with TickerProviderStateMix
     // بدء الانيميشن
     _pulseController.repeat(reverse: true);
     
-    // تحديث الطلبات عند فتح الشاشة
+    // تحديث صامت عند فتح الشاشة (بدون إخفاء القائمة)
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      controller.fetchUserOrders();
+      controller.refreshOrders();
     });
   }
 
@@ -60,7 +60,8 @@ class _OrdersScreenState extends State<OrdersScreen> with TickerProviderStateMix
         automaticallyImplyLeading: false, // إخفاء سهم الرجوع
       ),
       body: Obx(() {
-        if (controller.isLoading.value) {
+        // التحميل الكامل فقط عند أول فتح وليس عند كل تحديث
+        if (controller.isLoading.value && controller.ordersList.isEmpty) {
           return Center(
             child: CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(Colors.deepPurple),
@@ -68,21 +69,69 @@ class _OrdersScreenState extends State<OrdersScreen> with TickerProviderStateMix
           );
         }
 
-        if (controller.ordersList.isEmpty) {
-          return _buildEmptyState();
+        if (!controller.isLoading.value && controller.ordersList.isEmpty) {
+          return RefreshIndicator(
+            onRefresh: controller.refreshOrders,
+            color: Colors.deepPurple,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+                _buildEmptyState(),
+              ],
+            ),
+          );
         }
 
-        return RefreshIndicator(
-          onRefresh: controller.refreshOrders,
-          color: Colors.deepPurple,
-          child: ListView.builder(
-            padding: EdgeInsets.all(16),
-            itemCount: controller.ordersList.length,
-            itemBuilder: (context, index) {
-              final order = controller.ordersList[index];
-              return _buildOrderCard(order);
-            },
-          ),
+        return Stack(
+          children: [
+            RefreshIndicator(
+              onRefresh: controller.refreshOrders,
+              color: Colors.deepPurple,
+              child: ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.all(16),
+                itemCount: controller.ordersList.length,
+                itemBuilder: (context, index) {
+                  final order = controller.ordersList[index];
+                  return _buildOrderCard(order);
+                },
+              ),
+            ),
+            if (controller.isRefreshing.value)
+              Positioned(
+                top: 8,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.deepPurple.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'جاري التحديث...',
+                          style: TextStyle(color: Colors.white, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
         );
       }),
     );

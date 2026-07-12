@@ -134,7 +134,7 @@ class Checkout extends StatelessWidget {
                                     controller.price,
                                     controller.delivery,
                                     BoxCart,
-                                    '',
+                                    controller.nearpoint,
                                     '',
                                     controller.near,
                                   );

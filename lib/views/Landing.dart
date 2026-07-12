@@ -20,6 +20,7 @@ import 'package:ecommerce/views/OrdersScreen.dart';
 import 'package:ecommerce/views/NotificationsScreen.dart';
 import 'package:ecommerce/controllers/app_notification_controller.dart';
 import 'package:ecommerce/controllers/ProfileController.dart';
+import 'package:ecommerce/services/dnz_push_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 
@@ -105,6 +106,7 @@ class _LandingState extends State<Landing> with WidgetsBindingObserver {
           'updatedAt': FieldValue.serverTimestamp(),
         });
         print('تم حفظ FCM token عند فتح التطبيق: $phone');
+        await DnzPushService.registerCustomer(phone);
       }
     } catch (e) {
       print('خطأ في حفظ FCM token عند فتح التطبيق: $e');

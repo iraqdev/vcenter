@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:ecommerce/controllers/Checkout_controller.dart';
 import '../main.dart';
 class Delivery_controller extends GetxController{
   List<String> governorates_en = [
@@ -52,13 +51,6 @@ class Delivery_controller extends GetxController{
   late TextEditingController phone  = TextEditingController();
  void changeSelect(value){
    selectedGovernorate = value;
-   final Checkout_controller checkout_controller = Get.put(Checkout_controller());
-   if(selectedGovernorate == 'بغداد'){
-     checkout_controller.delivery = checkout_controller.delivery_Baghdad;
-   }else{
-     checkout_controller.delivery = checkout_controller.delivery_another;
-   }
-   checkout_controller.fullTotal =  checkout_controller.delivery + checkout_controller.total_user;
    update();
  }
   bool isValidPhoneNumber(String phoneNumber) {

@@ -1,12 +1,13 @@
+import 'dart:io';
 import 'dart:math';
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:get/get.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -24,7 +25,11 @@ import 'package:ecommerce/locale/Locale_controller.dart';
 import 'package:ecommerce/locale/locale.dart';
 import 'package:ecommerce/middleware/auth_middleware.dart';
 import 'package:ecommerce/controllers/app_notification_controller.dart';
+import 'package:ecommerce/firebase_options.dart';
+import 'package:ecommerce/services/dnz_push_service.dart';
 import 'package:ecommerce/services/audio_service.dart';
+import 'package:ecommerce/dnz_notifications.dart';
+import 'package:ecommerce/notifications/notification_center.dart';
 import 'package:ecommerce/models/CartModel.dart';
 import 'package:ecommerce/models/FavoriteModel.dart';
 import 'package:ecommerce/views/Billing.dart';
@@ -40,6 +45,7 @@ import 'package:ecommerce/views/Login.dart';
 import 'package:ecommerce/views/ProductPage.dart';
 import 'package:ecommerce/views/Products.dart';
 import 'package:ecommerce/views/RegisterView.dart';
+import 'package:ecommerce/views/ForgotPasswordView.dart';
 import 'package:ecommerce/views/ApplePartsScreen.dart';
 import 'package:intl/intl.dart';
 import 'package:video_player/video_player.dart';
@@ -51,38 +57,21 @@ var formatter = NumberFormat("#,###");
 late Box<CartModel> BoxCart;
 late Box<FavoriteModel> BoxFavorite;
 StreamSubscription<String>? _fcmTokenRefreshSubscription;
-final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
-
-/// نفس خيارات Firebase في [main] وفي معالج الخلفية (مطلوب لصوت قناة أندرويد عند الإشعار والتطبيق مغلق/بالخلفية).
-const FirebaseOptions _kDefaultFirebaseOptions = FirebaseOptions(
-  apiKey: 'AIzaSyCXPm9uDXkmXTuN1tIwh1Vgc2War5wU4b0',
-  appId: '1:414036126974:ios:0901f66035f8cc516109af',
-  messagingSenderId: '414036126974',
-  projectId: 'v-center-5f74b',
-  storageBucket: 'v-center-5f74b.firebasestorage.app',
-);
-
-const AndroidNotificationChannel _highImportanceChannel = AndroidNotificationChannel(
-  'high_importance_channel_v4',
-  'إشعارات v center',
-  description: 'تنبيهات مهمة مع صوت',
-  importance: Importance.max,
-  playSound: true,
-  sound: RawResourceAndroidNotificationSound('vcenter_notify'),
-);
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: _kDefaultFirebaseOptions);
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // بدون هذا، أندرويد قد يعرض إشعار FCM بقناة افتراضية بلا الصوت المخصص إذا لم تُنشأ القناة بعد.
-  final bgLocal = FlutterLocalNotificationsPlugin();
-  const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-  await bgLocal.initialize(const InitializationSettings(android: androidInit));
-  await bgLocal
-      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-      ?.createNotificationChannel(_highImportanceChannel);
+  // إذا الرسالة فيها notification فالنظام يعرضها عبر قناة vcenter_push_v3 مع الصوت.
+  // لا نلغيها ولا نعيد عرضها — cancelAll كان يحذف الإشعار فيختفي تماماً.
+  if (message.notification != null) {
+    print('📱 FCM background: النظام يعرض الإشعار (channel الصوت من التطبيق)');
+    return;
+  }
+
+  // data-only فقط: نعرض نحن
+  await NotificationCenter.showFromFcm(message);
 }
 
 void main() async {
@@ -90,10 +79,9 @@ void main() async {
   
   // تهيئة Firebase والتطبيق في الخلفية
   try {
-    await Firebase.initializeApp(options: _kDefaultFirebaseOptions);
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   } catch (e) {
     print('❌ Firebase initialization error: $e');
-    // محاولة التهيئة بدون options (سيحاول العثور على GoogleService-Info.plist)
     await Firebase.initializeApp();
   }
   sharedPreferences = await SharedPreferences.getInstance();
@@ -103,11 +91,17 @@ void main() async {
   BoxCart = await Hive.openBox<CartModel>('BoxCart');
   BoxFavorite = await Hive.openBox<FavoriteModel>('Favorite');
   
-  // تهيئة FCM
+  // تهيئة FCM + مركز الإشعارات
   try {
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
     final messaging = FirebaseMessaging.instance;
     await messaging.requestPermission(alert: true, badge: true, sound: true);
+    if (Platform.isAndroid) {
+      final notificationStatus = await Permission.notification.status;
+      if (!notificationStatus.isGranted) {
+        await Permission.notification.request();
+      }
+    }
     await messaging.setAutoInitEnabled(true);
     await messaging.setForegroundNotificationPresentationOptions(
       alert: true,
@@ -115,21 +109,19 @@ void main() async {
       sound: true,
     );
 
-    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosInit = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
-    const initSettings = InitializationSettings(
-      android: androidInit,
-      iOS: iosInit,
-    );
-    await _localNotifications.initialize(initSettings);
-    await _localNotifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(_highImportanceChannel);
-    print('✅ FCM initialized successfully');
+    await NotificationCenter.init();
+
+    await DnzPushService.ensureInitialized();
+    DnzPushService.attachMessageHandler((msg) {
+      try {
+        AudioService().playNewOrderSound();
+        final notificationController = Get.find<AppNotificationController>();
+        notificationController.addIncomingDnzMessage(msg);
+      } catch (e) {
+        print('❌ DNZ onMessage handler: $e');
+      }
+    });
+    print('✅ FCM + DNZ initialized successfully');
   } catch (e) {
     print('❌ FCM initialization error: $e');
   }
@@ -137,56 +129,20 @@ void main() async {
   // تسجيل AppNotificationController
   Get.put(AppNotificationController());
   
-  // إعداد معالج استلام الإشعارات في الواجهة
-  FirebaseMessaging.onMessage.listen((message) {
-    print('📱 تم استلام إشعار في المقدمة:');
-    print('   - Title: ${message.notification?.title}');
-    print('   - Body: ${message.notification?.body}');
-    print('   - Message ID: ${message.messageId}');
-    print('   - Data: ${message.data}');
-
+  // FCM احتياط فقط إذا WebSocket DNZ غير متصل (مسار واحد بدون تكرار)
+  FirebaseMessaging.onMessage.listen((message) async {
+    print('📱 FCM received: title=${message.notification?.title}, data=${message.data}');
     try {
+      if (DNZNotifications.instance.isWebSocketConnected) {
+        print('📱 FCM skipped (DNZ WebSocket connected)');
+        return;
+      }
+      await NotificationCenter.showFromFcm(message);
       AudioService().playNewOrderSound();
-      _localNotifications.show(
-        message.messageId.hashCode,
-        message.notification?.title ?? 'إشعار جديد',
-        message.notification?.body ?? '',
-        NotificationDetails(
-          android: AndroidNotificationDetails(
-            _highImportanceChannel.id,
-            _highImportanceChannel.name,
-            channelDescription: _highImportanceChannel.description,
-            importance: Importance.max,
-            priority: Priority.high,
-            playSound: true,
-            sound: const RawResourceAndroidNotificationSound('vcenter_notify'),
-            enableVibration: true,
-            icon: '@mipmap/ic_launcher',
-          ),
-          iOS: DarwinNotificationDetails(
-            presentAlert: true,
-            presentBadge: true,
-            presentSound: true,
-            presentBanner: true,
-            presentList: true,
-            sound: 'vcenter_notify.wav',
-          ),
-        ),
-      );
-
-      Future.delayed(Duration(milliseconds: 100), () {
-        try {
-          final notificationController = Get.find<AppNotificationController>();
-          notificationController.addIncomingMessage(message);
-          print('✅ تم إضافة الإشعار للمتحكم');
-          print('   - عدد الإشعارات الآن: ${notificationController.notifications.length}');
-          print('   - عدد غير المقروءة: ${notificationController.unreadCount.value}');
-        } catch (e) {
-          print('❌ خطأ في إضافة الإشعار للمتحكم: $e');
-        }
-      });
+      final notificationController = Get.find<AppNotificationController>();
+      notificationController.addIncomingMessage(message);
     } catch (e) {
-      print('خطأ في معالجة الإشعار: $e');
+      print('❌ FCM foreground handler: $e');
     }
   });
 
@@ -460,6 +416,9 @@ class MyApp extends StatelessWidget {
             name: '/register',
             page: () => RegisterView(),
             binding: Landing_bindings()),
+        GetPage(
+            name: '/forgot-password',
+            page: () => ForgotPasswordView()),
       ],
     );
   }
@@ -481,14 +440,17 @@ Future<void> _saveFcmTokenForExistingUsers() async {
     
     print('📱 رقم الهاتف: $phone');
     
-    // الحصول على FCM Token
+    // الحصول على FCM Token (على iOS قد نعتمد APNs عبر DnzPushService)
     final fcmToken = await FirebaseMessaging.instance.getToken();
     if (fcmToken == null || fcmToken.isEmpty) {
-      print('❌ لا يوجد FCM token');
-      return;
+      if (!Platform.isIOS) {
+        print('❌ لا يوجد FCM token');
+        return;
+      }
+      print('⚠️ لا يوجد FCM token — متابعة تسجيل DNZ عبر APNs على iOS');
+    } else {
+      print('🆔 FCM Token: $fcmToken');
     }
-    
-    print('🆔 FCM Token: $fcmToken');
     
     // البحث عن المستخدم في Firebase
     final usersSnapshot = await FirebaseFirestore.instance
@@ -508,14 +470,17 @@ Future<void> _saveFcmTokenForExistingUsers() async {
     print('🏢 closestBranch الحالي: ${userData['closestBranch']}');
     print('📍 shopLocation الحالي: ${userData['shopLocation']}');
     
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(userDoc.id)
-        .update({
-      'fcmToken': fcmToken,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-    print('✅ تم حفظ FCM token للمستخدم المسجل مسبقاً: $phone');
+    if (fcmToken != null && fcmToken.isNotEmpty) {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userDoc.id)
+          .update({
+        'fcmToken': fcmToken,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      print('✅ تم حفظ FCM token للمستخدم المسجل مسبقاً: $phone');
+    }
+    await DnzPushService.registerCustomer(phone);
     
     // التحقق من وجود closestBranch للمستخدمين القدامى
     final closestBranch = userData['closestBranch'];

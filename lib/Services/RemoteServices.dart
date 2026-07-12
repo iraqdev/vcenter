@@ -1,4 +1,6 @@
 import 'dart:convert';
+
+import '../utils/cancelled_order_utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ecommerce/models/SubCategory.dart';
 import 'package:ecommerce/models/Bill.dart';
@@ -11,6 +13,7 @@ import 'package:ecommerce/models/UserInfo.dart';
 import '../models/Slider.dart';
 import 'package:ecommerce/utils/image_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/cancelled_order_utils.dart';
 
 class RemoteServices {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -64,6 +67,9 @@ class RemoteServices {
         'phone': data['phone'],
         'user_id': data['originalId'] ?? data['id'] ?? 0,
         'near': data['near'] ?? '',
+        'nearpoint': data['nearpoint'] ?? '',
+        'city': data['city'] ?? '',
+        'address': data['address'] ?? '',
         'active': 1,
         'username': data['name'] ?? '',
         'userType': data['userType'] ?? '',
@@ -156,9 +162,9 @@ class RemoteServices {
     required String name,
     required String phone,
     required String password,
-    required String areaOrGovernorate,
-    required String requestDetails,
-    String? email,
+    required String governorate,
+    required String area,
+    required String nearpoint,
   }) async {
     try {
       final dup = await _db
@@ -174,10 +180,10 @@ class RemoteServices {
         'phone': phone,
         'name': name,
         'password': password,
-        'city': areaOrGovernorate,
-        'address': requestDetails,
-        'near': '',
-        'email': (email ?? '').trim(),
+        'city': governorate,
+        'address': area,
+        'near': nearpoint,
+        'nearpoint': nearpoint,
         'userType': 'زبون',
         'point': 0,
         'active': true,
@@ -286,6 +292,7 @@ class RemoteServices {
         'id': data['originalId'] ?? 0,
         'title': data['title'] ?? '',
         'price': data['price'] ?? 0,
+        'customerPrice': data['customerPrice'],
         'description': data['description'] ?? '',
         'image': ImageUtils.getCorrectImageUrl(
           (data['image'] ?? '').toString(),
@@ -333,6 +340,7 @@ class RemoteServices {
         'id': data['originalId'] ?? 0,
         'title': data['title'] ?? '',
         'price': data['price'] ?? 0,
+        'customerPrice': data['customerPrice'],
         'description': data['description'] ?? '',
         'image': ImageUtils.getCorrectImageUrl(
           (data['image'] ?? '').toString(),
@@ -387,6 +395,7 @@ class RemoteServices {
         'id': data['originalId'] ?? 0,
         'title': data['title'] ?? '',
         'price': data['price'] ?? 0,
+        'customerPrice': data['customerPrice'],
         'description': data['description'] ?? '',
         'image': ImageUtils.getCorrectImageUrl(
           (data['image'] ?? '').toString(),
@@ -420,22 +429,45 @@ class RemoteServices {
     user_phone,
     nearpoint,
     note,
-    near,
-  ) async {
+    near, {
+    String paymentMethod = 'نقدي',
+    String? paymentId,
+  }) async {
     try {
       final now = FieldValue.serverTimestamp();
+      final normalizedPaymentId = (paymentId ?? '').trim();
+
+      // منع إنشاء طلب مكرر لنفس عملية الدفع الأونلاين
+      if (normalizedPaymentId.isNotEmpty) {
+        final existing = await _db
+            .collection('bills')
+            .where('paymentId', isEqualTo: normalizedPaymentId)
+            .limit(1)
+            .get();
+        if (existing.docs.isNotEmpty) {
+          return '{"message":"Bill Added","duplicate":true}';
+        }
+      }
 
       final userProfile = await getUserProfileByPhone(user_phone.toString());
       final userType = (userProfile?['userType'] ?? '').toString();
 
       String billCity = city.toString().trim();
       String billAddress = address.toString().trim();
+      String billNearpoint = nearpoint.toString().trim();
+      String billNear = near.toString().trim();
       if (userProfile != null) {
         if (billCity.isEmpty) {
           billCity = (userProfile['city'] ?? '').toString().trim();
         }
         if (billAddress.isEmpty) {
           billAddress = (userProfile['address'] ?? '').toString().trim();
+        }
+        if (billNearpoint.isEmpty) {
+          billNearpoint = (userProfile['nearpoint'] ?? '').toString().trim();
+        }
+        if (billNear.isEmpty) {
+          billNear = (userProfile['near'] ?? '').toString().trim();
         }
       }
 
@@ -460,7 +492,7 @@ class RemoteServices {
         }
       }
 
-      final doc = await _db.collection('bills').add({
+      final billData = <String, dynamic>{
         'name': name,
         'phone': phone,
         'city': billCity,
@@ -469,16 +501,23 @@ class RemoteServices {
         'delivery': delivery,
         'items': items,
         'user_phone': user_phone,
-        'nearpoint': nearpoint,
+        'nearpoint': billNearpoint,
         'note': note,
-        'near': near,
+        'near': billNear,
         'userType': userType,
         'closestBranch': closestBranch,
         'status': 0,
         'orderstatus': 'قيد التحضير',
+        'paymentMethod': paymentMethod,
+        'paidOnline': paymentMethod == 'دفع أونلاين',
         'createdAt': now,
         'updatedAt': now,
-      });
+      };
+      if (normalizedPaymentId.isNotEmpty) {
+        billData['paymentId'] = normalizedPaymentId;
+      }
+
+      final doc = await _db.collection('bills').add(billData);
       await doc.update({'originalId': DateTime.now().microsecondsSinceEpoch});
       return '{"message":"Bill Added"}';
     } catch (e) {
@@ -548,7 +587,17 @@ class RemoteServices {
             'orderstatus': data['orderstatus'] ?? 'جاري التجهيز',
             'items': data['items'] ?? [], // إضافة تفاصيل المنتجات
             'closestBranch': data['closestBranch'], // إضافة الفرع الأقرب
-            'deliveryTime': data['deliveryTime'], // وقت التوصيل من الداشبورد
+            'deliveryTime': data['deliveryTime'], // نص المدة
+            'customerMessage': data['customerMessage']?.toString(),
+            'deliveryDurationMinutes': data['deliveryDurationMinutes'],
+            'deliveryDeadlineAt': (data['deliveryDeadlineAt'] is Timestamp)
+                ? (data['deliveryDeadlineAt'] as Timestamp)
+                    .toDate()
+                    .toIso8601String()
+                : data['deliveryDeadlineAt']?.toString(),
+            'cancelledAt': (data['cancelledAt'] is Timestamp)
+                ? (data['cancelledAt'] as Timestamp).toDate().toIso8601String()
+                : null,
           };
         } catch (e) {
           print('❌ RemoteServices - خطأ في تحويل طلب: $e');
@@ -571,7 +620,7 @@ class RemoteServices {
     return fetchBills(phone);
   }
 
-  // حذف الطلبات الملغاة القديمة
+  // حذف الطلبات الملغاة بعد انتهاء مدة الاحتفاظ
   static Future<void> deleteCancelledOrder(int orderId) async {
     try {
       print('🗑️ RemoteServices - حذف طلب ملغي: $orderId');
@@ -591,6 +640,31 @@ class RemoteServices {
     } catch (e) {
       print('❌ RemoteServices - خطأ في حذف الطلب: $e');
     }
+  }
+
+  /// حذف كل الطلبات الملغية التي مضى على إلغائها 15 دقيقة أو أكثر.
+  static Future<int> purgeExpiredCancelledOrders() async {
+    var deleted = 0;
+    try {
+      final now = DateTime.now();
+      final snap = await _db
+          .collection('bills')
+          .where('orderstatus', isEqualTo: 'ملغي')
+          .get();
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        if (shouldDeleteCancelledOrder(data, now)) {
+          await doc.reference.delete();
+          deleted++;
+        }
+      }
+      if (deleted > 0) {
+        print('🗑️ RemoteServices - حذف $deleted طلب ملغي منتهي');
+      }
+    } catch (e) {
+      print('❌ RemoteServices - خطأ في purge الطلبات الملغية: $e');
+    }
+    return deleted;
   }
 
   //
@@ -628,6 +702,7 @@ class RemoteServices {
         'id': data['originalId'] ?? 0,
         'title': data['title'] ?? '',
         'price': data['price'] ?? 0,
+        'customerPrice': data['customerPrice'],
         'image': ImageUtils.getCorrectImageUrl(
           (data['image'] ?? '').toString(),
           'product',
@@ -673,6 +748,7 @@ class RemoteServices {
         'id': data['originalId'] ?? 0,
         'title': data['title'] ?? '',
         'price': data['price'] ?? 0,
+        'customerPrice': data['customerPrice'],
         'description': data['description'] ?? '',
         'image': ImageUtils.getCorrectImageUrl(
           (data['image'] ?? '').toString(),
@@ -824,6 +900,7 @@ class RemoteServices {
           'id': data['originalId'] ?? 0,
           'title': data['title'] ?? '',
           'price': data['price'] ?? 0,
+          'customerPrice': data['customerPrice'],
           'description': data['description'] ?? '',
           'image': ImageUtils.getCorrectImageUrl(
             (data['image'] ?? '').toString(),
@@ -852,6 +929,7 @@ class RemoteServices {
         'id': data['originalId'] ?? 0,
         'title': data['title'] ?? '',
         'price': data['price'] ?? 0,
+        'customerPrice': data['customerPrice'],
         'description': data['description'] ?? '',
         'image': ImageUtils.getCorrectImageUrl(
           (data['image'] ?? '').toString(),

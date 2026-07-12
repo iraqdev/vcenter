@@ -7,16 +7,19 @@ import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:ecommerce/services/dnz_push_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import '../Bindings/Landing_bindings.dart';
 import '../Services/RemoteServices.dart';
+import '../Services/whatsapp_otp_service.dart';
 import '../main.dart';
 import '../utils/price_utils.dart';
 import '../views/Landing.dart';
 import '../views/MapPicker.dart';
+import '../views/OtpVerifyView.dart';
 
 class RegisterController extends GetxController {
   late bool loading = false;
@@ -29,9 +32,7 @@ class RegisterController extends GetxController {
   late TextEditingController pageName_ = TextEditingController();
   late TextEditingController customerName_ = TextEditingController();
   late TextEditingController customerPhone_ = TextEditingController();
-  late TextEditingController customerAreaOrGovernorate_ = TextEditingController();
-  late TextEditingController customerRequestDetails_ = TextEditingController();
-  late TextEditingController customerEmail_ = TextEditingController();
+  late TextEditingController customerLandmark_ = TextEditingController();
   late TextEditingController customerPassword_ = TextEditingController();
   int selectedRegisterTab = 0;
   File? shopImageFile;
@@ -241,6 +242,15 @@ class RegisterController extends GetxController {
     'حي الشهداء',
   ];
   String? selectedShopArea;
+  String? customerSelectedGovernorate;
+  void changeCustomerGovernorate(String? value) {
+    customerSelectedGovernorate = value;
+    update();
+  }
+
+  String get _customerAreaValue {
+    return customerSelectedGovernorate?.trim() ?? '';
+  }
 
   void changeSelect(value) {
     final prev = selectedGovernorate;
@@ -329,6 +339,7 @@ class RegisterController extends GetxController {
           });
           
           print('تم حفظ FCM token للمستخدم الجديد: $phone');
+          await DnzPushService.registerCustomer(phone);
         }
       }
     } catch (e) {
@@ -408,7 +419,43 @@ class RegisterController extends GetxController {
       return;
     }
 
-    // إنشاء الحساب مباشرة بعد التحقق من صحة البيانات
+    await _requestOtpAndOpenVerify(
+      phone: phone_.text.trim(),
+      onVerified: (_) => _completeShopRegistration(),
+    );
+  }
+
+  Future<void> _requestOtpAndOpenVerify({
+    required String phone,
+    required Future<void> Function(String code) onVerified,
+  }) async {
+    is_loading();
+    final result = await WhatsAppOtpService.requestOtp(
+      phone: phone,
+      purpose: 'register',
+    );
+    isnot_loading();
+
+    if (result['ok'] != true) {
+      errormsg = result['message']?.toString() ??
+          'فشل إرسال رمز التحقق عبر واتساب.';
+      is_error();
+      return;
+    }
+
+    Get.to(
+      () => OtpVerifyView(
+        phone: phone,
+        purpose: 'register',
+        onVerified: (code) async {
+          await onVerified(code);
+        },
+      ),
+    );
+  }
+
+  Future<void> _completeShopRegistration() async {
+    clearError();
     is_loading();
     final shopPicUrl = await _uploadShopImage(phone_.text.trim());
     if (shopPicUrl == null || shopPicUrl.isEmpty) {
@@ -425,7 +472,7 @@ class RegisterController extends GetxController {
       address_.text.trim(),
       closestPoint,
       shopLocation,
-      closestBranchName, // إضافة أقرب فرع
+      closestBranchName,
       shopPicUrl: shopPicUrl,
     );
 
@@ -433,53 +480,66 @@ class RegisterController extends GetxController {
       var json_response = jsonDecode(response);
       print(json_response);
       if (json_response['message'] == "Register Successfully") {
-        // حفظ FCM token في Firebase
         Future.delayed(Duration(seconds: 2), () {
           _saveFcmTokenToFirebase(phone_.text.trim());
         });
-        
+
         isnot_loading();
         shopImageFile = null;
         update();
-        Get.offNamed('/');
-        } else if (json_response['message'] == "Phone number already in use") {
-          errormsg =
-              "رقم الهاتف مستخدم بالفعل. يرجى استخدام رقم هاتف آخر أو تسجيل الدخول إذا كان لديك حساب.";
-          is_error();
-          print(json_response['message']);
-          isnot_loading();
-        } else if (json_response['message'] == "Invalid phone number") {
-          errormsg =
-              "رقم الهاتف غير صحيح. تأكد من إدخال رقم هاتف عراقي صحيح (11 رقم يبدأ بـ 07).";
-          is_error();
-          print(json_response['message']);
-          isnot_loading();
+        Get.offAllNamed('/');
+        Get.snackbar(
+          'تم',
+          'تم إنشاء الحساب. بانتظار الموافقة.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green.shade600,
+          colorText: Colors.white,
+        );
+      } else if (json_response['message'] == "Phone number already in use") {
+        errormsg =
+            "رقم الهاتف مستخدم بالفعل. يرجى استخدام رقم هاتف آخر أو تسجيل الدخول إذا كان لديك حساب.";
+        is_error();
+        print(json_response['message']);
+        isnot_loading();
+        Get.back();
+      } else if (json_response['message'] == "Invalid phone number") {
+        errormsg =
+            "رقم الهاتف غير صحيح. تأكد من إدخال رقم هاتف عراقي صحيح (11 رقم يبدأ بـ 07).";
+        is_error();
+        print(json_response['message']);
+        isnot_loading();
+        Get.back();
       } else if (json_response['message'] == "Password too short") {
         errormsg = "كلمة المرور قصيرة جداً. يجب أن تكون 6 أحرف على الأقل.";
         is_error();
         print(json_response['message']);
         isnot_loading();
+        Get.back();
       } else if (json_response['message'] == "Invalid name") {
         errormsg = "الاسم غير صحيح. يرجى إدخال اسم صحيح.";
         is_error();
         print(json_response['message']);
         isnot_loading();
+        Get.back();
       } else if (json_response['message'] == "Missing required fields") {
         errormsg = "يرجى ملء جميع الحقول المطلوبة.";
         is_error();
         print(json_response['message']);
         isnot_loading();
+        Get.back();
       } else {
         errormsg = "حدث خطأ أثناء إنشاء الحساب. يرجى المحاولة مرة أخرى.";
         is_error();
         print(json_response['message']);
         isnot_loading();
+        Get.back();
       }
     } else {
       errormsg =
           "فشل الاتصال بالخادم. تحقق من اتصال الإنترنت وحاول مرة أخرى.";
       is_error();
       isnot_loading();
+      Get.back();
     }
   }
 
@@ -487,6 +547,9 @@ class RegisterController extends GetxController {
     await sharedPreferences!.setString('phone', json['phone']);
     await sharedPreferences!.setInt('user_id', json['user_id']);
     await sharedPreferences!.setString('near', json['near'] ?? '');
+    await sharedPreferences!.setString('nearpoint', json['nearpoint'] ?? '');
+    await sharedPreferences!.setString('city', json['city'] ?? '');
+    await sharedPreferences!.setString('address', json['address'] ?? '');
     await sharedPreferences!.setInt('active', json['active']);
     await sharedPreferences!.setString('name', json['username']);
     await sharedPreferences!.setString(
@@ -518,13 +581,20 @@ class RegisterController extends GetxController {
       is_error();
       return;
     }
-    if (customerAreaOrGovernorate_.text.trim().isEmpty) {
-      errormsg = "يرجى إدخال المنطقة/المحافظة.";
+    if (customerSelectedGovernorate == null ||
+        customerSelectedGovernorate!.trim().isEmpty) {
+      errormsg = "يرجى اختيار المحافظة.";
       is_error();
       return;
     }
-    if (customerRequestDetails_.text.trim().isEmpty) {
-      errormsg = "يرجى شرح الطلب.";
+    final area = _customerAreaValue;
+    if (area.isEmpty) {
+      errormsg = "يرجى اختيار المحافظة.";
+      is_error();
+      return;
+    }
+    if (customerLandmark_.text.trim().isEmpty) {
+      errormsg = "يرجى إدخال أقرب نقطة دالة.";
       is_error();
       return;
     }
@@ -542,31 +612,33 @@ class RegisterController extends GetxController {
       return;
     }
 
-    final email = customerEmail_.text.trim();
-    if (email.isNotEmpty &&
-        !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email)) {
-      errormsg = "صيغة البريد الإلكتروني غير صحيحة.";
-      is_error();
-      return;
-    }
+    await _requestOtpAndOpenVerify(
+      phone: customerPhone_.text.trim(),
+      onVerified: (_) => _completeCustomerRegistration(),
+    );
+  }
 
+  Future<void> _completeCustomerRegistration() async {
+    clearError();
     final phone = customerPhone_.text.trim();
     final password = customerPassword_.text.trim();
+    final area = _customerAreaValue;
 
     is_loading();
     final response = await RemoteServices.registerCustomer(
       name: customerName_.text.trim(),
       phone: phone,
       password: password,
-      areaOrGovernorate: customerAreaOrGovernorate_.text.trim(),
-      requestDetails: customerRequestDetails_.text.trim(),
-      email: email.isEmpty ? null : email,
+      governorate: customerSelectedGovernorate!.trim(),
+      area: area,
+      nearpoint: customerLandmark_.text.trim(),
     );
 
     if (response == null) {
       errormsg = "فشل الاتصال. تحقق من الإنترنت وحاول مرة أخرى.";
       is_error();
       isnot_loading();
+      Get.back();
       return;
     }
 
@@ -579,9 +651,8 @@ class RegisterController extends GetxController {
           customerName_.clear();
           customerPhone_.clear();
           customerPassword_.clear();
-          customerAreaOrGovernorate_.clear();
-          customerRequestDetails_.clear();
-          customerEmail_.clear();
+          customerSelectedGovernorate = null;
+          customerLandmark_.clear();
           await _persistSessionAndOpenApp(
             Map<String, dynamic>.from(loginJson),
           );
@@ -591,15 +662,18 @@ class RegisterController extends GetxController {
       errormsg = "تم إنشاء الحساب لكن فشل تسجيل الدخول. جرّب تسجيل الدخول يدوياً.";
       is_error();
       isnot_loading();
+      Get.offAllNamed('/');
     } else if (jsonResponse['message'] == "Phone number already in use") {
       errormsg =
           "رقم الهاتف مستخدم. سجّل الدخول إن كان لديك حساب، أو استخدم رقماً آخر.";
       is_error();
       isnot_loading();
+      Get.back();
     } else {
       errormsg = "حدث خطأ أثناء إنشاء الحساب. حاول مرة أخرى.";
       is_error();
       isnot_loading();
+      Get.back();
     }
   }
 

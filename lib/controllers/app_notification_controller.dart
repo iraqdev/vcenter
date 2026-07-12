@@ -62,6 +62,21 @@ class AppNotificationController extends GetxController {
     unreadCount.value = notifications.where((notification) => !notification['isRead']).length;
   }
 
+  // إضافة إشعار وارد من DNZ WebSocket
+  void addIncomingDnzMessage(Map<String, dynamic> msg) {
+    final newNotification = {
+      'id': DateTime.now().millisecondsSinceEpoch.toString(),
+      'title': msg['title']?.toString() ?? 'إشعار جديد',
+      'body': msg['body']?.toString() ?? '',
+      'timestamp': DateTime.now(),
+      'isRead': false,
+      'data': msg['data'] is Map ? Map<String, dynamic>.from(msg['data'] as Map) : <String, dynamic>{},
+    };
+    notifications.insert(0, newNotification);
+    _updateUnreadCount();
+    _persistNotifications();
+  }
+
   // إضافة إشعار وارد من FCM
   void addIncomingMessage(RemoteMessage message) {
     final newNotification = {

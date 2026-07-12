@@ -439,7 +439,11 @@ class _SearchViewState extends State<SearchView> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        formatUserPriceLabel(product.price, suffix: ' دينار'),
+                        formatUserPriceLabel(
+                          product.price,
+                          suffix: ' دينار',
+                          customerPrice: product.customerPrice,
+                        ),
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,

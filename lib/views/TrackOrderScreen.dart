@@ -6,6 +6,9 @@ import 'package:video_player/video_player.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ecommerce/controllers/OrdersController.dart';
 import 'package:ecommerce/controllers/Landing_controller.dart';
+import 'package:ecommerce/Services/order_rating_service.dart';
+import 'package:ecommerce/widgets/order_rating_dialog.dart';
+import 'package:ecommerce/utils/delivery_duration_utils.dart';
 
 class TrackOrderScreen extends StatefulWidget {
   final Bill order;
@@ -20,14 +23,33 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
   late VideoPlayerController _videoController;
   bool _isVideoInitialized = false;
   Timer? _statusUpdateTimer;
+  Timer? _countdownTimer;
+  bool _ratingPromptShown = false;
+  DateTime? _deliveryDeadlineAt;
 
-  // بيانات الطلب (سيتم تحديثها تلقائياً)
-  String get deliveryTime => widget.order.deliveryTime ?? "لم يتم تحديد الوقت بعد";
   String get orderStatus => widget.order.orderstatus ?? "جاري التجهيز";
+
+  DateTime? _parseDeadline(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate().toLocal();
+    if (value is DateTime) return value.toLocal();
+    final s = value.toString().trim();
+    if (s.isEmpty) return null;
+    return DateTime.tryParse(s)?.toLocal();
+  }
+
+  String get _countdownText {
+    final deadline = _deliveryDeadlineAt;
+    if (deadline == null) return '--:--:--';
+    return DeliveryDurationUtils.formatCountdown(
+      deadline.difference(DateTime.now()),
+    );
+  }
 
   @override
   void initState() {
     super.initState();
+    _deliveryDeadlineAt = _parseDeadline(widget.order.deliveryDeadlineAt);
     
     // تهيئة الفيديو مع معالجة الأخطاء
     try {
@@ -56,6 +78,91 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
     
     // بدء التحديث الدوري لحالة الطلب كل 10 ثوان
     _startStatusUpdate();
+    _startCountdownTicker();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _updateOrderStatus();
+      await _maybeShowRatingDialog();
+    });
+  }
+
+  Future<void> _maybeShowRatingDialog() async {
+    if (_ratingPromptShown || !mounted) return;
+
+    final alreadyRated = await OrderRatingService.hasRated(widget.order.id);
+    if (alreadyRated || !mounted) return;
+
+    final snoozed = await OrderRatingService.isSnoozed(widget.order.id);
+    if (snoozed || !mounted) return;
+
+    final delivered = OrderRatingService.isDeliveredStatus(orderStatus);
+    final countdownEnded = orderStatus == 'جاري التوصيل' &&
+        _deliveryDeadlineAt != null &&
+        !DateTime.now().isBefore(_deliveryDeadlineAt!);
+
+    if (!delivered && !countdownEnded) return;
+
+    _ratingPromptShown = true;
+    final result = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      useRootNavigator: true,
+      builder: (_) => OrderRatingDialog(
+        orderOriginalId: widget.order.id,
+        closestBranch: widget.order.closestBranch,
+      ),
+    );
+
+    if (!mounted) return;
+
+    if (result == 'yes') {
+      widget.order.orderstatus = 'تم الاستلام';
+      _ratingPromptShown = true;
+      if (mounted) setState(() {});
+      return;
+    }
+
+    if (result == 'no') {
+      await OrderRatingService.snoozeFor(
+        orderOriginalId: widget.order.id,
+        duration: const Duration(minutes: 10),
+      );
+      _ratingPromptShown = false;
+      _scheduleSnoozeRecheck();
+      return;
+    }
+
+    // أُغلق بدون نتيجة — لا نعيد الفتح فوراً
+    _ratingPromptShown = false;
+  }
+
+  void _scheduleSnoozeRecheck() {
+    Future.delayed(const Duration(minutes: 10), () {
+      if (!mounted) return;
+      _maybeShowRatingDialog();
+    });
+  }
+
+  void _onOrderDelivered(String? previousStatus, String newStatus) {
+    if (!OrderRatingService.isDeliveredStatus(newStatus)) return;
+    if (OrderRatingService.isDeliveredStatus(previousStatus)) return;
+    _maybeShowRatingDialog();
+  }
+
+  void _startCountdownTicker() {
+    _countdownTimer?.cancel();
+    var promptedForZero = false;
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      if (_deliveryDeadlineAt == null) return;
+      if (orderStatus != 'جاري التوصيل') return;
+      setState(() {});
+      final ended = !DateTime.now().isBefore(_deliveryDeadlineAt!);
+      if (ended && !promptedForZero && !_ratingPromptShown) {
+        promptedForZero = true;
+        _maybeShowRatingDialog();
+      }
+    });
   }
 
   @override
@@ -66,6 +173,7 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
       print('⚠️ TrackOrderScreen - خطأ في dispose الفيديو: $e');
     }
     _statusUpdateTimer?.cancel();
+    _countdownTimer?.cancel();
     super.dispose();
   }
 
@@ -92,26 +200,49 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
         final data = doc.data();
         final newStatus = data['orderstatus'] ?? 'جاري التجهيز';
         final newDeliveryTime = data['deliveryTime'];
+        final newCustomerMessage = data['customerMessage'];
+        final newDeadline = _parseDeadline(data['deliveryDeadlineAt']);
+        final newDuration = data['deliveryDurationMinutes'];
         
-        // تحديث حالة الطلب ووقت التوصيل في widget.order
+        final previousStatus = widget.order.orderstatus;
+        
         bool needsUpdate = false;
         if (widget.order.orderstatus != newStatus) {
           widget.order.orderstatus = newStatus;
           needsUpdate = true;
+          _onOrderDelivered(previousStatus, newStatus.toString());
         }
-        // تحديث وقت التوصيل فقط عند وجود قيمة جديدة - لا نستبدل قيمة جيدة بـ null
         final hasNewDeliveryTime = newDeliveryTime != null && newDeliveryTime.toString().trim().isNotEmpty;
         if (hasNewDeliveryTime && widget.order.deliveryTime != newDeliveryTime) {
-          widget.order.deliveryTime = newDeliveryTime;
+          widget.order.deliveryTime = newDeliveryTime.toString();
           needsUpdate = true;
+        }
+        final hasNewCustomerMessage =
+            newCustomerMessage != null && newCustomerMessage.toString().trim().isNotEmpty;
+        if (hasNewCustomerMessage &&
+            widget.order.customerMessage != newCustomerMessage.toString()) {
+          widget.order.customerMessage = newCustomerMessage.toString();
+          needsUpdate = true;
+        }
+        if (newDeadline != null &&
+            (_deliveryDeadlineAt == null ||
+                !_deliveryDeadlineAt!.isAtSameMomentAs(newDeadline))) {
+          _deliveryDeadlineAt = newDeadline;
+          widget.order.deliveryDeadlineAt = newDeadline.toIso8601String();
+          needsUpdate = true;
+        }
+        if (newDuration != null) {
+          final parsed = int.tryParse(newDuration.toString());
+          if (parsed != null &&
+              widget.order.deliveryDurationMinutes != parsed) {
+            widget.order.deliveryDurationMinutes = parsed;
+            needsUpdate = true;
+          }
         }
         
         if (needsUpdate) {
-          setState(() {
-            // إعادة بناء الواجهة لتحديث حالة الطلب ووقت التوصيل
-          });
+          setState(() {});
           
-          // تحديث OrdersController أيضاً
           try {
             final ordersController = Get.find<OrdersController>();
             final orderIndex = ordersController.ordersList.indexWhere(
@@ -121,7 +252,23 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
             if (orderIndex != -1) {
               ordersController.ordersList[orderIndex].orderstatus = newStatus;
               if (hasNewDeliveryTime) {
-                ordersController.ordersList[orderIndex].deliveryTime = newDeliveryTime;
+                ordersController.ordersList[orderIndex].deliveryTime =
+                    newDeliveryTime.toString();
+              }
+              if (hasNewCustomerMessage) {
+                ordersController.ordersList[orderIndex].customerMessage =
+                    newCustomerMessage.toString();
+              }
+              if (newDeadline != null) {
+                ordersController.ordersList[orderIndex].deliveryDeadlineAt =
+                    newDeadline.toIso8601String();
+              }
+              if (newDuration != null) {
+                final parsed = int.tryParse(newDuration.toString());
+                if (parsed != null) {
+                  ordersController
+                      .ordersList[orderIndex].deliveryDurationMinutes = parsed;
+                }
               }
               ordersController.ordersList.refresh();
             }
@@ -161,7 +308,7 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
             SizedBox(height: 20),
             
             // رسالة وقت الوصول
-            _buildDeliveryTimeMessage(),
+            _buildDeliveryCountdownBox(),
             
             SizedBox(height: 30),
             
@@ -233,14 +380,16 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
     );
   }
 
-  Widget _buildDeliveryTimeMessage() {
-    // إخفاء رسالة الوقت في حالة "جاري التجهيز"
-    if (orderStatus == 'جاري التجهيز' || orderStatus == 'قيد التحضير') {
-      return SizedBox.shrink();
+  Widget _buildDeliveryCountdownBox() {
+    if (orderStatus != 'جاري التوصيل') {
+      return const SizedBox.shrink();
     }
-    
+    if (_deliveryDeadlineAt == null) {
+      return const SizedBox.shrink();
+    }
+
     return Container(
-      padding: EdgeInsets.all(20),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
@@ -248,32 +397,30 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
             blurRadius: 10,
-            offset: Offset(0, 5),
+            offset: const Offset(0, 5),
           ),
         ],
       ),
-      child: Column(
+      child: Row(
         children: [
-          Icon(
-            Icons.access_time,
-            size: 40,
-            color: Colors.blue[600],
-          ),
-          SizedBox(height: 10),
-          Text(
-            'سيصل طلبك خلال',
+          Icon(Icons.timer_outlined, size: 32, color: Colors.blue[700]),
+          const SizedBox(width: 12),
+          const Text(
+            'وقت التوصيل',
             style: TextStyle(
               fontSize: 16,
-              color: Colors.grey[600],
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
             ),
           ),
-          SizedBox(height: 5),
+          const Spacer(),
           Text(
-            deliveryTime,
+            _countdownText,
             style: TextStyle(
-              fontSize: 24,
+              fontSize: 22,
               fontWeight: FontWeight.bold,
-              color: Colors.blue[600],
+              color: Colors.blue[800],
+              letterSpacing: 1.2,
             ),
           ),
         ],
@@ -285,7 +432,7 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
     // تحديد المراحل النشطة بناءً على حالة الطلب
     bool isPreparing = orderStatus == 'جاري التجهيز' || orderStatus == 'قيد التحضير';
     bool isDelivering = orderStatus == 'جاري التوصيل';
-    bool isDelivered = orderStatus == 'تم الاستلام';
+    bool isDelivered = orderStatus == 'تم الاستلام' || orderStatus == 'تم التوصيل';
     bool isCancelled = orderStatus == 'ملغي';
     
     return Container(
@@ -477,6 +624,36 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
           Divider(color: Colors.grey[300]),
           
           // المجموع الكلي
+          if (widget.order.delivery > 0) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'سعر المنتجات',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                ),
+                Text(
+                  '${_calculateItemsTotal().toStringAsFixed(0)} د.ع',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[800]),
+                ),
+              ],
+            ),
+            SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'رسوم التوصيل (فرع العراق)',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                ),
+                Text(
+                  '${widget.order.delivery} د.ع',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[800]),
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+          ],
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -489,7 +666,7 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
                 ),
               ),
               Text(
-                '${_calculateTotal().toStringAsFixed(0)} د.ع',
+                '${_calculateGrandTotal().toStringAsFixed(0)} د.ع',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -597,8 +774,8 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
     );
   }
 
-  double _calculateTotal() {
-    if (widget.order.items == null) return 0.0;
+  double _calculateItemsTotal() {
+    if (widget.order.items == null) return widget.order.price.toDouble();
     
     double total = 0.0;
     for (var item in widget.order.items!) {
@@ -608,6 +785,12 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
     }
     return total;
   }
+
+  double _calculateGrandTotal() {
+    return _calculateItemsTotal() + (widget.order.delivery);
+  }
+
+  double _calculateTotal() => _calculateGrandTotal();
 
   // تحديد ما إذا كان يمكن إلغاء الطلب
   bool _canCancelOrder() {
@@ -856,7 +1039,7 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
         
         // تحديث حالة الطلب مع timeout
         await doc.reference.update({
-          'status': 'ملغي',
+          'status': 3,
           'orderstatus': 'ملغي',
           'updatedAt': FieldValue.serverTimestamp(),
           'cancelledAt': FieldValue.serverTimestamp(),
