@@ -45,7 +45,6 @@ import 'package:ecommerce/views/Login.dart';
 import 'package:ecommerce/views/ProductPage.dart';
 import 'package:ecommerce/views/Products.dart';
 import 'package:ecommerce/views/RegisterView.dart';
-import 'package:ecommerce/views/ForgotPasswordView.dart';
 import 'package:ecommerce/views/ApplePartsScreen.dart';
 import 'package:intl/intl.dart';
 import 'package:video_player/video_player.dart';
@@ -416,9 +415,6 @@ class MyApp extends StatelessWidget {
             name: '/register',
             page: () => RegisterView(),
             binding: Landing_bindings()),
-        GetPage(
-            name: '/forgot-password',
-            page: () => ForgotPasswordView()),
       ],
     );
   }

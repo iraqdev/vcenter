@@ -14,12 +14,10 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import '../Bindings/Landing_bindings.dart';
 import '../Services/RemoteServices.dart';
-import '../Services/whatsapp_otp_service.dart';
 import '../main.dart';
 import '../utils/price_utils.dart';
 import '../views/Landing.dart';
 import '../views/MapPicker.dart';
-import '../views/OtpVerifyView.dart';
 
 class RegisterController extends GetxController {
   late bool loading = false;
@@ -419,39 +417,7 @@ class RegisterController extends GetxController {
       return;
     }
 
-    await _requestOtpAndOpenVerify(
-      phone: phone_.text.trim(),
-      onVerified: (_) => _completeShopRegistration(),
-    );
-  }
-
-  Future<void> _requestOtpAndOpenVerify({
-    required String phone,
-    required Future<void> Function(String code) onVerified,
-  }) async {
-    is_loading();
-    final result = await WhatsAppOtpService.requestOtp(
-      phone: phone,
-      purpose: 'register',
-    );
-    isnot_loading();
-
-    if (result['ok'] != true) {
-      errormsg = result['message']?.toString() ??
-          'فشل إرسال رمز التحقق عبر واتساب.';
-      is_error();
-      return;
-    }
-
-    Get.to(
-      () => OtpVerifyView(
-        phone: phone,
-        purpose: 'register',
-        onVerified: (code) async {
-          await onVerified(code);
-        },
-      ),
-    );
+    await _completeShopRegistration();
   }
 
   Future<void> _completeShopRegistration() async {
@@ -612,10 +578,7 @@ class RegisterController extends GetxController {
       return;
     }
 
-    await _requestOtpAndOpenVerify(
-      phone: customerPhone_.text.trim(),
-      onVerified: (_) => _completeCustomerRegistration(),
-    );
+    await _completeCustomerRegistration();
   }
 
   Future<void> _completeCustomerRegistration() async {
@@ -638,7 +601,6 @@ class RegisterController extends GetxController {
       errormsg = "فشل الاتصال. تحقق من الإنترنت وحاول مرة أخرى.";
       is_error();
       isnot_loading();
-      Get.back();
       return;
     }
 
@@ -668,12 +630,10 @@ class RegisterController extends GetxController {
           "رقم الهاتف مستخدم. سجّل الدخول إن كان لديك حساب، أو استخدم رقماً آخر.";
       is_error();
       isnot_loading();
-      Get.back();
     } else {
       errormsg = "حدث خطأ أثناء إنشاء الحساب. حاول مرة أخرى.";
       is_error();
       isnot_loading();
-      Get.back();
     }
   }
 
