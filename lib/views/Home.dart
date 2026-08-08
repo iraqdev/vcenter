@@ -8,6 +8,8 @@ import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:ecommerce/controllers/Home_controller.dart';
 import 'package:ecommerce/main.dart';
 import 'package:ecommerce/utils/price_utils.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../models/Slider.dart';
 
 class Home extends StatelessWidget {
   Home({super.key});
@@ -129,7 +131,9 @@ class Home extends StatelessWidget {
               ),
               items:
                   controller.slidersList.map((item) {
-                    return Container(
+                    return GestureDetector(
+                      onTap: () => _openSliderLink(item),
+                      child: Container(
                       margin: EdgeInsets.symmetric(
                         horizontal: Get.width * 0.01,
                       ),
@@ -171,6 +175,7 @@ class Home extends StatelessWidget {
                               ),
                         ),
                       ),
+                    ),
                     );
                   }).toList(),
             ),
@@ -201,6 +206,25 @@ class Home extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _openSliderLink(SliderBar item) async {
+    final raw = item.link.trim();
+    if (raw.isEmpty) return;
+    final withScheme = raw.contains('://') ? raw : 'https://$raw';
+    final uri = Uri.tryParse(withScheme);
+    if (uri == null) {
+      Get.snackbar('تنبيه', 'رابط البانر غير صالح');
+      return;
+    }
+    try {
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok) {
+        Get.snackbar('تنبيه', 'تعذر فتح الرابط');
+      }
+    } catch (e) {
+      Get.snackbar('تنبيه', 'تعذر فتح الرابط');
+    }
   }
 
   // عنوان القسم المحسن

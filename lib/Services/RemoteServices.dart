@@ -781,6 +781,7 @@ class RemoteServices {
               ? (data['originalId'] ?? 0)
               : int.tryParse((data['originalId'] ?? '0').toString()) ?? 0,
         ),
+        'link': (data['link'] ?? '').toString(),
       }).toList());
       return sliderFromJson(jsonStr);
     } catch (e) {
