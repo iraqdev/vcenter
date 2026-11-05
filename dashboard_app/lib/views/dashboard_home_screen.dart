@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../controllers/user_controller.dart';
 import '../controllers/product_controller.dart';
 import '../controllers/order_controller.dart';
 import '../controllers/notification_controller.dart';
 import '../controllers/branch_controller.dart';
+import '../services/app_settings_service.dart';
 import 'users_management_screen.dart';
 
 class DashboardHomeScreen extends StatelessWidget {
@@ -214,6 +216,24 @@ class DashboardHomeScreen extends StatelessWidget {
                       Get.toNamed('/products');
                     },
                   ),
+                  _buildDrawerItem(
+                    icon: Icons.sell_outlined,
+                    title: 'أسعار منتجات الزبائن',
+                    subtitle: 'سعر المحل + 4000 أو سعر مخصص',
+                    onTap: () {
+                      Get.back();
+                      Get.toNamed('/customer_prices');
+                    },
+                  ),
+                  _buildDrawerItem(
+                    icon: Icons.link,
+                    title: 'ربط المنتجات مع POS',
+                    subtitle: 'ربط تطبيق العميل بمخزون سطح المكتب',
+                    onTap: () {
+                      Get.back();
+                      Get.toNamed('/product_linking');
+                    },
+                  ),
                   
                   // إدارة الطلبات
                   _buildDrawerItem(
@@ -243,6 +263,16 @@ class DashboardHomeScreen extends StatelessWidget {
                     onTap: () {
                       Get.back();
                       Get.toNamed('/notifications');
+                    },
+                  ),
+
+                  _buildDrawerItem(
+                    icon: Icons.payment,
+                    title: 'بوابة الدفع',
+                    subtitle: 'إنشاء رابط دفع DNZ',
+                    onTap: () {
+                      Get.back();
+                      Get.toNamed('/payment_gateway');
                     },
                   ),
                   
@@ -638,6 +668,16 @@ class DashboardHomeScreen extends StatelessWidget {
               trailing: Text('العربية'),
             ),
             ListTile(
+              leading: Icon(Icons.discount, color: Colors.deepPurple),
+              title: Text('تخفيض الكمية'),
+              subtitle: Text('نسبة التخفيض وعدد القطع'),
+              trailing: Icon(Icons.chevron_left),
+              onTap: () {
+                Get.back();
+                _showQuantityDiscountSettingsDialog();
+              },
+            ),
+            ListTile(
               leading: Icon(Icons.info),
               title: Text('حول التطبيق'),
               onTap: () {
@@ -655,6 +695,185 @@ class DashboardHomeScreen extends StatelessWidget {
       ),
       barrierDismissible: true,
     );
+  }
+
+  Future<void> _showQuantityDiscountSettingsDialog() async {
+    final current = await AppSettingsService.getQuantityDiscount();
+    final percentController =
+        TextEditingController(text: current.percent.toString());
+    final minQuantityController =
+        TextEditingController(text: current.minQuantity.toString());
+    final discountPiecesController =
+        TextEditingController(text: current.discountPieces.toString());
+    bool isSaving = false;
+    String? formError;
+
+    await Get.dialog(
+      StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.discount, color: Colors.deepPurple),
+                SizedBox(width: 8),
+                Expanded(child: Text('إعدادات تخفيض الكمية')),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'الحد الأدنى يحدد متى يبدأ التخفيض، وعدد القطع يحدد على كم قطعة يُطبَّق (الباقي بسعر كامل).',
+                    style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                  ),
+                  SizedBox(height: 16),
+                  TextField(
+                    controller: percentController,
+                    keyboardType: TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                    ],
+                    decoration: InputDecoration(
+                      labelText: 'نسبة التخفيض (%)',
+                      hintText: '2.5',
+                      helperText: 'الأساسية: 2.5%',
+                      border: OutlineInputBorder(),
+                      suffixText: '%',
+                    ),
+                  ),
+                  SizedBox(height: 12),
+                  TextField(
+                    controller: minQuantityController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                    ],
+                    decoration: InputDecoration(
+                      labelText: 'الحد الأدنى للتفعيل',
+                      hintText: '3',
+                      helperText: 'متى يبدأ التخفيض (مثال: من 3 قطع)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  SizedBox(height: 12),
+                  TextField(
+                    controller: discountPiecesController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                    ],
+                    decoration: InputDecoration(
+                      labelText: 'عدد القطع التي يُطبَّق عليها التخفيض',
+                      hintText: '3',
+                      helperText: 'كم قطعة تُخفَّض فقط (الباقي كامل)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  if (formError != null) ...[
+                    SizedBox(height: 12),
+                    Text(
+                      formError!,
+                      style: TextStyle(
+                        color: Colors.red.shade700,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: isSaving ? null : () => Get.back(),
+                child: Text('إلغاء'),
+              ),
+              ElevatedButton(
+                onPressed: isSaving
+                    ? null
+                    : () async {
+                        final percent = double.tryParse(
+                          percentController.text.trim(),
+                        );
+                        final minQuantity = int.tryParse(
+                          minQuantityController.text.trim(),
+                        );
+                        final discountPieces = int.tryParse(
+                          discountPiecesController.text.trim(),
+                        );
+                        if (percent == null || percent < 0 || percent > 100) {
+                          setDialogState(
+                            () => formError = 'أدخل نسبة صحيحة بين 0 و 100',
+                          );
+                          return;
+                        }
+                        if (minQuantity == null || minQuantity < 1) {
+                          setDialogState(
+                            () => formError =
+                                'أدخل حداً أدنى صحيحاً للتفعيل (1 فأكثر)',
+                          );
+                          return;
+                        }
+                        if (discountPieces == null || discountPieces < 1) {
+                          setDialogState(
+                            () => formError =
+                                'أدخل عدد قطع التخفيض صحيحاً (1 فأكثر)',
+                          );
+                          return;
+                        }
+                        setDialogState(() {
+                          isSaving = true;
+                          formError = null;
+                        });
+                        final ok = await AppSettingsService.saveQuantityDiscount(
+                          QuantityDiscountSettings(
+                            percent: percent,
+                            minQuantity: minQuantity,
+                            discountPieces: discountPieces,
+                          ),
+                        );
+                        if (!context.mounted) return;
+                        if (ok) {
+                          Get.back();
+                          Get.snackbar(
+                            'تم',
+                            'تم حفظ إعدادات تخفيض الكمية',
+                            backgroundColor: Colors.green,
+                            colorText: Colors.white,
+                          );
+                        } else {
+                          setDialogState(() {
+                            isSaving = false;
+                            formError = 'فشل الحفظ. حاول مرة أخرى';
+                          });
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepPurple,
+                  foregroundColor: Colors.white,
+                ),
+                child: isSaving
+                    ? SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text('حفظ'),
+              ),
+            ],
+          );
+        },
+      ),
+      barrierDismissible: false,
+    );
+
+    percentController.dispose();
+    minQuantityController.dispose();
+    discountPiecesController.dispose();
   }
 
   // حوار اختيار الفرع

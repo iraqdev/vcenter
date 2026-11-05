@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/order_model.dart';
 import '../utils/order_location_utils.dart';
+import '../utils/whatsapp_launcher.dart';
 
 
 class OrderCard extends StatelessWidget {
@@ -8,6 +9,9 @@ class OrderCard extends StatelessWidget {
   final VoidCallback onViewDetails;
   final VoidCallback onUpdateStatus;
   final VoidCallback onDelete;
+  final bool selectionMode;
+  final bool isSelected;
+  final VoidCallback? onToggleSelect;
 
   const OrderCard({
     super.key,
@@ -15,15 +19,23 @@ class OrderCard extends StatelessWidget {
     required this.onViewDetails,
     required this.onUpdateStatus,
     required this.onDelete,
+    this.selectionMode = false,
+    this.isSelected = false,
+    this.onToggleSelect,
   });
+
+  OrderLocationInfo get _locationInfo => orderLocationInfo(order);
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    final card = Card(
       margin: EdgeInsets.only(bottom: 12),
-      elevation: 2,
+      elevation: isSelected ? 4 : 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(15),
+        side: isSelected
+            ? BorderSide(color: Colors.deepPurple, width: 2)
+            : BorderSide.none,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -40,6 +52,17 @@ class OrderCard extends StatelessWidget {
             ),
             child: Row(
               children: [
+                if (selectionMode) ...[
+                  // العرض فقط — الضغط يُعالَج من InkWell الخارجي لتفادي التبديل المزدوج
+                  Icon(
+                    isSelected
+                        ? Icons.check_box
+                        : Icons.check_box_outline_blank,
+                    color: isSelected ? Colors.deepPurple : Colors.grey[600],
+                    size: 26,
+                  ),
+                  SizedBox(width: 4),
+                ],
                 // أيقونة الحالة
                 Container(
                   padding: EdgeInsets.all(8),
@@ -64,27 +87,56 @@ class OrderCard extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            'طلب #${order.originalId}',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
+                          Flexible(
+                            child: Text(
+                              'طلب #${order.originalId}',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          Container(
-                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: _getStatusColor(),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              order.orderstatus,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.white,
-                                fontWeight: FontWeight.w500,
-                              ),
+                          SizedBox(width: 8),
+                          Flexible(
+                            child: Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              alignment: WrapAlignment.end,
+                              children: [
+                                Container(
+                                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: _getStatusColor(),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    order.orderstatus,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                                if (order.isPaidOnline)
+                                  Container(
+                                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.teal,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      'دفع أونلاين',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
                         ],
@@ -103,11 +155,32 @@ class OrderCard extends StatelessWidget {
                       SizedBox(height: 2),
                       
                       // رقم الهاتف
-                      Text(
-                        order.userPhone,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
+                      InkWell(
+                        onTap: () => WhatsAppLauncher.openChat(order.userPhone),
+                        borderRadius: BorderRadius.circular(4),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.chat, size: 16, color: Colors.green.shade700),
+                              const SizedBox(width: 4),
+                              Text(
+                                order.userPhone.isNotEmpty
+                                    ? order.userPhone
+                                    : 'لا يوجد رقم',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: order.userPhone.isNotEmpty
+                                      ? Colors.green.shade800
+                                      : Colors.grey,
+                                  decoration: order.userPhone.isNotEmpty
+                                      ? TextDecoration.underline
+                                      : null,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -123,22 +196,50 @@ class OrderCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // المحافظة / المنطقة
-                if (formatOrderLocation(order.city, order.address).isNotEmpty) ...[
+                // الموقع / تفاصيل الطلب
+                if (_locationInfo.hasContent) ...[
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
                       SizedBox(width: 8),
                       Expanded(
-                        child: Text(
-                          formatOrderLocation(order.city, order.address),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                            fontWeight: FontWeight.w500,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _locationInfo.cardPrimary,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (_locationInfo.cardLandmark != null) ...[
+                              SizedBox(height: 4),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(Icons.flag_outlined,
+                                      size: 14, color: Colors.grey[500]),
+                                  SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      _locationInfo.cardLandmark!,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey[600],
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                     ],
@@ -229,11 +330,13 @@ class OrderCard extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          'نقدي', // يمكن إضافة paymentMethod لاحقاً إذا كان موجوداً في البيانات
+                          order.paymentMethod,
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
-                            color: Colors.blue[700],
+                            color: order.isPaidOnline
+                                ? Colors.teal[700]
+                                : Colors.blue[700],
                           ),
                         ),
                       ],
@@ -290,6 +393,7 @@ class OrderCard extends StatelessWidget {
           ),
           
           // أزرار الإجراءات
+          if (!selectionMode)
           Container(
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
@@ -348,6 +452,14 @@ class OrderCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+
+    if (!selectionMode) return card;
+
+    return InkWell(
+      onTap: onToggleSelect,
+      borderRadius: BorderRadius.circular(15),
+      child: card,
     );
   }
 

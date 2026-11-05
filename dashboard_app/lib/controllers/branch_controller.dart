@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/dnz_push_service.dart';
 
 class BranchController extends GetxController {
   // قائمة الفروع المتاحة (المسؤول يظهر كل شيء)
@@ -71,6 +72,7 @@ class BranchController extends GetxController {
         'active': true,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+      await DnzPushService.registerDashboard(fcmToken: token, branch: branch);
       print('✅ BranchController - تم تحديث جهاز الداش للفرع: $branch');
     } catch (e) {
       print('❌ BranchController - خطأ في تحديث جهاز الداش: $e');

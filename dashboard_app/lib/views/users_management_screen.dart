@@ -146,7 +146,7 @@ class UsersManagementScreen extends StatelessWidget {
           TextField(
             controller: searchController,
             decoration: InputDecoration(
-              hintText: 'البحث في المستخدمين...',
+              hintText: 'البحث بالاسم أو رقم الهاتف...',
               prefixIcon: Icon(Icons.search, color: Colors.deepPurple),
               suffixIcon: searchController.text.isNotEmpty
                   ? IconButton(

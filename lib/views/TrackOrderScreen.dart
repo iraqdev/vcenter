@@ -25,6 +25,8 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
   Timer? _statusUpdateTimer;
   Timer? _countdownTimer;
   bool _ratingPromptShown = false;
+  bool _autoDeliverInProgress = false;
+  bool _autoDeliverDone = false;
   DateTime? _deliveryDeadlineAt;
 
   String get orderStatus => widget.order.orderstatus ?? "جاري التجهيز";
@@ -82,8 +84,50 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _updateOrderStatus();
+      await _autoMarkDeliveredIfCountdownEnded();
       await _maybeShowRatingDialog();
     });
+  }
+
+  bool get _isCountdownEnded =>
+      _deliveryDeadlineAt != null &&
+      !DateTime.now().isBefore(_deliveryDeadlineAt!);
+
+  Future<void> _autoMarkDeliveredIfCountdownEnded() async {
+    if (!mounted || _autoDeliverDone || _autoDeliverInProgress) return;
+    if (!_isCountdownEnded) return;
+    if (OrderRatingService.isDeliveredStatus(orderStatus)) {
+      _autoDeliverDone = true;
+      return;
+    }
+    // فقط أثناء جاري التوصيل (أو إن انتهى الوقت وما زالت الحالة توصيل)
+    if (orderStatus != 'جاري التوصيل') return;
+
+    _autoDeliverInProgress = true;
+    final previousStatus = orderStatus;
+    final ok =
+        await OrderRatingService.markDeliveredByCountdown(widget.order.id);
+    if (!mounted) return;
+
+    if (ok) {
+      _autoDeliverDone = true;
+      widget.order.orderstatus = 'تم الاستلام';
+      widget.order.status = 2;
+      try {
+        final ordersController = Get.find<OrdersController>();
+        final orderIndex = ordersController.ordersList.indexWhere(
+          (order) => order.id == widget.order.id,
+        );
+        if (orderIndex != -1) {
+          ordersController.ordersList[orderIndex].orderstatus = 'تم الاستلام';
+          ordersController.ordersList[orderIndex].status = 2;
+          ordersController.update();
+        }
+      } catch (_) {}
+      if (mounted) setState(() {});
+      _onOrderDelivered(previousStatus, 'تم الاستلام');
+    }
+    _autoDeliverInProgress = false;
   }
 
   Future<void> _maybeShowRatingDialog() async {
@@ -151,16 +195,18 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
 
   void _startCountdownTicker() {
     _countdownTimer?.cancel();
-    var promptedForZero = false;
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
       if (!mounted) return;
       if (_deliveryDeadlineAt == null) return;
-      if (orderStatus != 'جاري التوصيل') return;
+      if (orderStatus != 'جاري التوصيل' &&
+          !OrderRatingService.isDeliveredStatus(orderStatus)) {
+        return;
+      }
       setState(() {});
-      final ended = !DateTime.now().isBefore(_deliveryDeadlineAt!);
-      if (ended && !promptedForZero && !_ratingPromptShown) {
-        promptedForZero = true;
-        _maybeShowRatingDialog();
+      if (_isCountdownEnded &&
+          orderStatus == 'جاري التوصيل' &&
+          !_autoDeliverDone) {
+        await _autoMarkDeliveredIfCountdownEnded();
       }
     });
   }

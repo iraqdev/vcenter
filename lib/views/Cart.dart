@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:ecommerce/controllers/Cart_controller.dart';
+import 'package:ecommerce/utils/quantity_discount_utils.dart';
 import '../main.dart';
 
 class CartPage extends StatelessWidget {
@@ -344,24 +345,52 @@ class CartPage extends StatelessWidget {
                     ),
                   ),
                   SizedBox(height: Get.width * 0.02),
-                  // السعر
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: Get.width * 0.03,
-                      vertical: Get.width * 0.01,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.deepPurple.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      formatter.format(price) + ' ' + '18'.tr,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: Colors.deepPurple,
-                        fontSize: Get.width * 0.032,
-                      ),
-                    ),
+                  // السعر (وحدة + مجموع السطر بعد تخفيض الكمية إن وُجد)
+                  Builder(
+                    builder: (_) {
+                      final lineTotal = lineTotalWithQuantityDiscount(
+                        unitPrice: price,
+                        quantity: count,
+                      );
+                      final savings = quantityDiscountSavings(
+                        unitPrice: price,
+                        quantity: count,
+                      );
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: Get.width * 0.03,
+                              vertical: Get.width * 0.01,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.deepPurple.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '${formatter.format(lineTotal)} ${'18'.tr}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: Colors.deepPurple,
+                                fontSize: Get.width * 0.032,
+                              ),
+                            ),
+                          ),
+                          if (savings > 0) ...[
+                            SizedBox(height: 4),
+                            Text(
+                              'وفّرت ${formatter.format(savings)} ${'18'.tr} (تخفيض ${quantityDiscountConfig.discountPieces} قطع)',
+                              style: TextStyle(
+                                fontSize: Get.width * 0.026,
+                                color: Colors.green[700],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ],
+                      );
+                    },
                   ),
                 ],
               ),

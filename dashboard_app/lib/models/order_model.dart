@@ -32,8 +32,12 @@ class OrderModel {
   final DateTime createdAt;
   final DateTime? updatedAt;
   final String? closestBranch; // الفرع الأقرب: الغزالية، الزعفرانية، الاعظمية، العراق
-  final String? deliveryTime; // وقت التوصيل المتوقع
+  final String? deliveryTime; // نص مدة التوصيل للعرض/الإشعار
+  final String? customerMessage; // قديم — رسالة حرة
+  final int? deliveryDurationMinutes; // مدة التوصيل بالدقائق
+  final DateTime? deliveryDeadlineAt; // موعد انتهاء العدّاد
   final String? userType; // زبون | متجر
+  final String paymentMethod; // نقدي | دفع أونلاين
 
   OrderModel({
     required this.id,
@@ -54,12 +58,24 @@ class OrderModel {
     this.updatedAt,
     this.closestBranch,
     this.deliveryTime,
+    this.customerMessage,
+    this.deliveryDurationMinutes,
+    this.deliveryDeadlineAt,
     this.userType,
+    this.paymentMethod = 'نقدي',
   });
 
   bool get isCustomerOrder => userType == 'زبون';
+  bool get isPaidOnline =>
+      paymentMethod == 'دفع أونلاين' || paymentMethod.toLowerCase() == 'online';
 
   factory OrderModel.fromFirestore(Map<String, dynamic> data, String id) {
+    final paidOnlineFlag = data['paidOnline'] == true;
+    final methodRaw = (data['paymentMethod'] ?? '').toString().trim();
+    final paymentMethod = methodRaw.isNotEmpty
+        ? methodRaw
+        : (paidOnlineFlag ? 'دفع أونلاين' : 'نقدي');
+
     return OrderModel(
       id: id,
       userPhone: data['phone'] ?? data['user_phone'] ?? '',
@@ -82,8 +98,16 @@ class OrderModel {
           ? (data['updatedAt'] as dynamic).toDate()
           : null,
       closestBranch: data['closestBranch'],
-      deliveryTime: data['deliveryTime'],
+      deliveryTime: data['deliveryTime']?.toString(),
+      customerMessage: data['customerMessage']?.toString(),
+      deliveryDurationMinutes: data['deliveryDurationMinutes'] != null
+          ? _parseInt(data['deliveryDurationMinutes'])
+          : null,
+      deliveryDeadlineAt: data['deliveryDeadlineAt'] != null
+          ? (data['deliveryDeadlineAt'] as dynamic).toDate()
+          : null,
       userType: data['userType']?.toString(),
+      paymentMethod: paymentMethod,
     );
   }
 
@@ -107,7 +131,12 @@ class OrderModel {
       'updatedAt': updatedAt,
       'closestBranch': closestBranch,
       'deliveryTime': deliveryTime,
+      'customerMessage': customerMessage,
+      'deliveryDurationMinutes': deliveryDurationMinutes,
+      'deliveryDeadlineAt': deliveryDeadlineAt,
       'userType': userType,
+      'paymentMethod': paymentMethod,
+      'paidOnline': isPaidOnline,
     };
   }
 
@@ -130,7 +159,11 @@ class OrderModel {
     DateTime? updatedAt,
     String? closestBranch,
     String? deliveryTime,
+    String? customerMessage,
+    int? deliveryDurationMinutes,
+    DateTime? deliveryDeadlineAt,
     String? userType,
+    String? paymentMethod,
   }) {
     return OrderModel(
       id: id ?? this.id,
@@ -151,7 +184,12 @@ class OrderModel {
       updatedAt: updatedAt ?? this.updatedAt,
       closestBranch: closestBranch ?? this.closestBranch,
       deliveryTime: deliveryTime ?? this.deliveryTime,
+      customerMessage: customerMessage ?? this.customerMessage,
+      deliveryDurationMinutes:
+          deliveryDurationMinutes ?? this.deliveryDurationMinutes,
+      deliveryDeadlineAt: deliveryDeadlineAt ?? this.deliveryDeadlineAt,
       userType: userType ?? this.userType,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
     );
   }
 
@@ -159,7 +197,7 @@ class OrderModel {
   bool get isPreparing => status == 0; // جاري التجهيز
   bool get isDelivering => status == 1; // جاري التوصيل
   bool get isDelivered => status == 2; // تم الاستلام
-  bool get isCancelled => status == 3; // ملغي
+  bool get isCancelled => status == 3 || orderstatus == 'ملغي';
 
   String get statusText {
     return orderstatus; // استخدام النص العربي المباشر من Firebase

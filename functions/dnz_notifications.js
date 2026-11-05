@@ -54,28 +54,38 @@ async function dnzRequest(path, body) {
     return { ok: false, status: 0, error: 'dnz_not_configured' };
   }
 
-  const response = await fetch(`${apiBase}${path}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-API-Key': apiKey,
-    },
-    body: JSON.stringify(body),
-  });
-
-  let payload = null;
   try {
-    payload = await response.json();
-  } catch (_) {
-    payload = null;
-  }
+    const response = await fetch(`${apiBase}${path}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey,
+      },
+      body: JSON.stringify(body),
+    });
 
-  return {
-    ok: response.ok,
-    status: response.status,
-    payload,
-    error: response.ok ? null : (payload?.message || payload?.error || `http_${response.status}`),
-  };
+    let payload = null;
+    try {
+      payload = await response.json();
+    } catch (_) {
+      payload = null;
+    }
+
+    return {
+      ok: response.ok,
+      status: response.status,
+      payload,
+      error: response.ok ? null : (payload?.message || payload?.error || `http_${response.status}`),
+    };
+  } catch (error) {
+    // لا نرمي الخطأ — حتى لا تنهار الدالة بالكامل عند تعطل DNS/الدومين
+    return {
+      ok: false,
+      status: 0,
+      payload: null,
+      error: error?.cause?.code || error?.code || error?.message || 'dnz_network_error',
+    };
+  }
 }
 
 async function registerDnzMobileSubscriber({

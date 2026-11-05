@@ -78,21 +78,59 @@ class ProductCard extends StatelessWidget {
                       ),
                       SizedBox(height: 8),
                       
-                      // السعر
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.green[100],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          product.formattedPrice,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green[700],
-                          ),
-                        ),
+                      // شارات الظهور
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          if (product.showForStore)
+                            _buildAudienceChip('متجر', Colors.deepPurple),
+                          if (product.showForCustomer)
+                            _buildAudienceChip('زبون', Colors.teal),
+                          if (!product.showForStore && !product.showForCustomer)
+                            _buildAudienceChip('مخفي', Colors.grey),
+                        ],
+                      ),
+                      SizedBox(height: 8),
+
+                      // الأسعار
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          if (product.showForStore)
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.deepPurple[50],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'متجر: ${product.formattedPrice}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.deepPurple[700],
+                                ),
+                              ),
+                            ),
+                          if (product.showForCustomer)
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.teal[50],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'زبون: ${product.customerPrice ?? product.effectiveCustomerPrice} د.ع',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.teal[700],
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ],
                   ),
@@ -256,6 +294,24 @@ class ProductCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAudienceChip(String label, MaterialColor color) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color[100],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: color[700],
+        ),
       ),
     );
   }

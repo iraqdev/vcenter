@@ -24,6 +24,7 @@ class SliderEditDialog extends StatefulWidget {
 class _SliderEditDialogState extends State<SliderEditDialog> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
+  final _linkController = TextEditingController();
   final _imagePicker = ImagePicker();
   
   bool _isActive = true;
@@ -36,6 +37,7 @@ class _SliderEditDialogState extends State<SliderEditDialog> {
     super.initState();
     if (widget.slider != null) {
       _titleController.text = widget.slider!.title;
+      _linkController.text = widget.slider!.link;
       _currentImageUrl = widget.slider!.image;
       _isActive = widget.slider!.active;
     }
@@ -44,6 +46,7 @@ class _SliderEditDialogState extends State<SliderEditDialog> {
   @override
   void dispose() {
     _titleController.dispose();
+    _linkController.dispose();
     super.dispose();
   }
 
@@ -212,6 +215,7 @@ class _SliderEditDialogState extends State<SliderEditDialog> {
         id: widget.slider?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
         title: _titleController.text.trim(),
         image: imageUrl!,
+        link: _linkController.text.trim(),
         active: _isActive,
         originalId: widget.slider?.originalId,
         createdAt: widget.slider?.createdAt ?? DateTime.now(),
@@ -260,6 +264,10 @@ class _SliderEditDialogState extends State<SliderEditDialog> {
                   
                   // حقل العنوان
                   _buildTitleField(),
+                  SizedBox(height: 20),
+
+                  // حقل الرابط (اختياري)
+                  _buildLinkField(),
                   SizedBox(height: 20),
                   
                   // قسم الصورة
@@ -331,6 +339,34 @@ class _SliderEditDialogState extends State<SliderEditDialog> {
       validator: (value) {
         if (value == null || value.trim().isEmpty) {
           return 'الرجاء إدخال عنوان العرض';
+        }
+        return null;
+      },
+    );
+  }
+
+  Widget _buildLinkField() {
+    return TextFormField(
+      controller: _linkController,
+      keyboardType: TextInputType.url,
+      decoration: InputDecoration(
+        labelText: 'رابط عند الضغط (اختياري)',
+        hintText: 'https://example.com',
+        prefixIcon: Icon(Icons.link),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        filled: true,
+        fillColor: Colors.grey[50],
+        helperText: 'إن وُجد، يفتح الرابط عند ضغط المستخدم على البانر',
+      ),
+      validator: (value) {
+        final text = value?.trim() ?? '';
+        if (text.isEmpty) return null;
+        final withScheme = text.contains('://') ? text : 'https://$text';
+        final uri = Uri.tryParse(withScheme);
+        if (uri == null || !uri.hasAuthority) {
+          return 'أدخل رابطاً صالحاً مثل https://example.com';
         }
         return null;
       },

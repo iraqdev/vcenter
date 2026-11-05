@@ -8,10 +8,11 @@ import '../controllers/category_controller.dart';
 import '../controllers/subcategory_controller.dart';
 import '../controllers/branch_controller.dart';
 import '../services/image_service.dart';
+import '../utils/dashboard_dialog.dart';
 
 class ProductEditDialog extends StatefulWidget {
   final ProductModel? product;
-  final Function(ProductModel) onSave;
+  final Future<bool> Function(ProductModel) onSave;
 
   const ProductEditDialog({
     super.key,
@@ -24,22 +25,31 @@ class ProductEditDialog extends StatefulWidget {
 }
 
 class _ProductEditDialogState extends State<ProductEditDialog> {
+  static const List<String> _validBranches = [
+    'all',
+    'الغزالية',
+    'الزعفرانية',
+    'الاعظمية',
+    'العراق',
+  ];
+
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _priceController = TextEditingController();
+  final _customerPriceController = TextEditingController();
   final _imageUrlController = TextEditingController();
   final _categoryController = TextEditingController();
   final _brandController = TextEditingController();
   final _modelController = TextEditingController();
   final _subCategoryController = TextEditingController();
   bool _isActive = true;
-  
-  // متغير لتتبع الفئة الفرعية المختارة
+  bool _showForStore = true;
+  bool _showForCustomer = true;
+  int? _selectedCategory;
   int? _selectedSubCategory;
-  
-  // متغير لتتبع الفرع المختار (مطلوب عند إضافة منتج جديد)
   String? _selectedBranch;
+  String? _formError;
   
   // متغيرات إدارة الصور
   List<File> _selectedImages = [];
@@ -50,6 +60,13 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
   final SubCategoryController subCategoryController = Get.find<SubCategoryController>();
   final ImagePicker _imagePicker = ImagePicker();
 
+  String? _normalizeBranch(String? branch) {
+    if (branch == null || branch.trim().isEmpty) return 'all';
+    final b = branch.trim();
+    if (_validBranches.contains(b)) return b;
+    return 'all';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -57,19 +74,38 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
       _nameController.text = widget.product!.title;
       _descriptionController.text = widget.product!.description;
       _priceController.text = widget.product!.price.toString();
+      if (widget.product!.customerPrice != null) {
+        _customerPriceController.text = widget.product!.customerPrice.toString();
+      } else if (widget.product!.showForCustomer) {
+        _customerPriceController.text =
+            widget.product!.effectiveCustomerPrice.toString();
+      }
       _imageUrlController.text = widget.product!.image;
-      _categoryController.text = widget.product!.category.toString();
+      _selectedCategory = widget.product!.category == 0
+          ? null
+          : widget.product!.category;
+      _categoryController.text = (_selectedCategory ?? 0).toString();
       _brandController.text = widget.product!.brand ?? '';
       _modelController.text = widget.product!.model ?? '';
       _subCategoryController.text = widget.product!.subCategory?.toString() ?? '';
       _selectedSubCategory = widget.product!.subCategory;
-      _selectedBranch = widget.product!.branch;
+      _selectedBranch = _normalizeBranch(widget.product!.branch);
       _isActive = widget.product!.active;
+      _showForStore = widget.product!.showForStore;
+      _showForCustomer = widget.product!.showForCustomer;
+      if (_selectedCategory != null) {
+        subCategoryController.setSelectedCategory(_selectedCategory!);
+      }
     } else {
       // عند إضافة منتج جديد: استخدم الفرع الحالي من الداش (إن لم يكن المسؤول)
       final branchController = Get.find<BranchController>();
       final currentBranch = branchController.selectedBranch.value;
-      _selectedBranch = currentBranch == 'المسؤول' ? null : currentBranch;
+      _selectedBranch = currentBranch == 'المسؤول'
+          ? 'all'
+          : _normalizeBranch(currentBranch);
+      // افتراضي للمنتجات الجديدة: متجر + زبون
+      _showForStore = true;
+      _showForCustomer = true;
     }
   }
 
@@ -78,6 +114,7 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
     _nameController.dispose();
     _descriptionController.dispose();
     _priceController.dispose();
+    _customerPriceController.dispose();
     _imageUrlController.dispose();
     _categoryController.dispose();
     _brandController.dispose();
@@ -172,22 +209,125 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
                       ),
                       SizedBox(height: 20),
                       
-                      // السعر
+                      // ظهور المنتج: متجر / زبون
+                      Container(
+                        padding: EdgeInsets.all(15),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.grey[300]!),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'عرض المنتج لـ',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            SwitchListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text('المتاجر'),
+                              subtitle: Text('يظهر لأصحاب المحلات'),
+                              secondary: Icon(Icons.store, color: Colors.deepPurple),
+                              value: _showForStore,
+                              activeColor: Colors.deepPurple,
+                              onChanged: (value) {
+                                setState(() {
+                                  _showForStore = value;
+                                  _formError = null;
+                                });
+                              },
+                            ),
+                            SwitchListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text('الزبائن'),
+                              subtitle: Text('يظهر للمستخدمين العاديين (زبون)'),
+                              secondary: Icon(Icons.person, color: Colors.teal),
+                              value: _showForCustomer,
+                              activeColor: Colors.teal,
+                              onChanged: (value) {
+                                setState(() {
+                                  _showForCustomer = value;
+                                  _formError = null;
+                                  // عند التفعيل وغياب سعر زبون: ضع الافتراضي للتعديل
+                                  if (value &&
+                                      _customerPriceController.text.trim().isEmpty) {
+                                    final base = _parsePrice(_priceController.text) ??
+                                        widget.product?.price ??
+                                        0;
+                                    _customerPriceController.text =
+                                        (base + 4000).toString();
+                                  }
+                                });
+                              },
+                            ),
+                            if (!_showForStore && !_showForCustomer)
+                              Padding(
+                                padding: EdgeInsets.only(top: 4),
+                                child: Text(
+                                  'يجب تفعيل المتجر أو الزبون على الأقل',
+                                  style: TextStyle(color: Colors.red, fontSize: 12),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(height: 20),
+
+                      // سعر المتجر
                       TextFormField(
                         controller: _priceController,
+                        enabled: _showForStore,
                         decoration: InputDecoration(
-                          labelText: 'السعر (د.ع) *',
-                          prefixIcon: Icon(Icons.attach_money),
+                          labelText: _showForStore ? 'سعر المتجر (د.ع) *' : 'سعر المتجر (د.ع)',
+                          prefixIcon: Icon(Icons.store),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
+                          helperText: _showForStore
+                              ? null
+                              : 'معطّل لأن عرض المتجر غير مفعّل',
                         ),
                         keyboardType: TextInputType.number,
                         validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'يرجى إدخال السعر';
+                          if (!_showForStore) return null;
+                          if (value == null || value.trim().isEmpty) {
+                            return 'يرجى إدخال سعر المتجر';
                           }
-                          if (int.tryParse(value) == null) {
+                          if (_parsePrice(value) == null) {
+                            return 'يرجى إدخال سعر صحيح';
+                          }
+                          return null;
+                        },
+                      ),
+                      SizedBox(height: 20),
+
+                      // سعر الزبون
+                      TextFormField(
+                        controller: _customerPriceController,
+                        enabled: _showForCustomer,
+                        decoration: InputDecoration(
+                          labelText: _showForCustomer ? 'سعر الزبون (د.ع) *' : 'سعر الزبون (د.ع)',
+                          prefixIcon: Icon(Icons.person),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          helperText: _showForCustomer
+                              ? 'يُعرض للزبون كما هو بدون إضافة'
+                              : 'معطّل لأن عرض الزبون غير مفعّل',
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (!_showForCustomer) return null;
+                          if (value == null || value.trim().isEmpty) {
+                            return 'يرجى إدخال سعر الزبون';
+                          }
+                          if (_parsePrice(value) == null) {
                             return 'يرجى إدخال سعر صحيح';
                           }
                           return null;
@@ -196,46 +336,50 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
                       SizedBox(height: 20),
                       
                       // الفئة
-                      DropdownButtonFormField<int>(
-                        value: widget.product?.category ?? 0,
-                        decoration: InputDecoration(
-                          labelText: 'الفئة *',
-                          prefixIcon: Icon(Icons.category),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        items: [
-                          DropdownMenuItem<int>(
-                            value: 0,
-                            child: Text('اختر الفئة'),
-                          ),
-                          ...categoryController.categories.map((category) =>
-                            DropdownMenuItem<int>(
-                              value: category.originalId,
-                              child: Text(category.title),
+                      Obx(() {
+                        final categoryItems = categoryController.categories
+                            .map((category) => DropdownMenuItem<int>(
+                                  value: category.originalId,
+                                  child: Text(category.title),
+                                ))
+                            .toList();
+                        final categoryIds =
+                            categoryItems.map((e) => e.value).toSet();
+                        final safeCategory =
+                            categoryIds.contains(_selectedCategory)
+                                ? _selectedCategory
+                                : null;
+
+                        return DropdownButtonFormField<int>(
+                          value: safeCategory,
+                          decoration: InputDecoration(
+                            labelText: 'الفئة *',
+                            prefixIcon: Icon(Icons.category),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
                             ),
                           ),
-                        ],
-                        onChanged: (value) {
-                          if (value != null) {
-                            print('🔄 ProductEditDialog - تم تغيير الفئة الرئيسية إلى: $value');
-                            _categoryController.text = value.toString();
-                            // تحديث الفئات الفرعية عند تغيير الفئة الرئيسية
-                            subCategoryController.setSelectedCategory(value);
-                            // إعادة تعيين الفئة الفرعية المختارة
-                            setState(() {
-                              _selectedSubCategory = null;
-                            });
-                          }
-                        },
-                        validator: (value) {
-                          if (value == null || value == 0) {
-                            return 'يرجى اختيار الفئة';
-                          }
-                          return null;
-                        },
-                      ),
+                          items: categoryItems,
+                          onChanged: (value) {
+                            if (value != null) {
+                              print('🔄 ProductEditDialog - تم تغيير الفئة الرئيسية إلى: $value');
+                              _categoryController.text = value.toString();
+                              subCategoryController.setSelectedCategory(value);
+                              setState(() {
+                                _selectedCategory = value;
+                                _selectedSubCategory = null;
+                                _formError = null;
+                              });
+                            }
+                          },
+                          validator: (value) {
+                            if (value == null || value == 0) {
+                              return 'يرجى اختيار الفئة';
+                            }
+                            return null;
+                          },
+                        );
+                      }),
                       SizedBox(height: 20),
                       
                       // العلامة التجارية
@@ -292,8 +436,27 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
                           ];
                         }
                         
+                        final items = subCategories.isNotEmpty
+                            ? subCategories
+                                .map((subCategory) => DropdownMenuItem<int>(
+                                      value: subCategory.originalId,
+                                      child: Text(subCategory.title),
+                                    ))
+                                .toList()
+                            : defaultSubCategories
+                                .map((subCategory) => DropdownMenuItem<int>(
+                                      value: subCategory['id'] as int,
+                                      child: Text(subCategory['title'] as String),
+                                    ))
+                                .toList();
+                        final itemValues = items.map((e) => e.value).toSet();
+                        final safeSubCategory =
+                            itemValues.contains(_selectedSubCategory)
+                                ? _selectedSubCategory
+                                : null;
+
                         return DropdownButtonFormField<int>(
-                          value: _selectedSubCategory,
+                          value: safeSubCategory,
                           decoration: InputDecoration(
                             labelText: 'الفئة الفرعية',
                             border: OutlineInputBorder(
@@ -301,19 +464,7 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
                             ),
                             prefixIcon: Icon(Icons.category),
                           ),
-                          items: subCategories.isNotEmpty 
-                            ? subCategories.map((subCategory) {
-                                return DropdownMenuItem<int>(
-                                  value: subCategory.originalId,
-                                  child: Text(subCategory.title),
-                                );
-                              }).toList()
-                            : defaultSubCategories.map((subCategory) {
-                                return DropdownMenuItem<int>(
-                                  value: subCategory['id'],
-                                  child: Text(subCategory['title']),
-                                );
-                              }).toList(),
+                          items: items,
                           onChanged: (int? value) {
                             setState(() {
                               _selectedSubCategory = value;
@@ -321,7 +472,7 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
                             print('🔄 ProductEditDialog - تم اختيار الفئة الفرعية: $value');
                           },
                           validator: (value) {
-                            if (selectedCategory == 0) {
+                            if (selectedCategory == 0 && _selectedCategory == null) {
                               return 'يرجى اختيار الفئة الرئيسية أولاً';
                             }
                             return null;
@@ -362,6 +513,7 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
                         onChanged: (String? value) {
                           setState(() {
                             _selectedBranch = value;
+                            _formError = null;
                           });
                         },
                         validator: (value) {
@@ -372,6 +524,26 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
                         },
                       ),
                       SizedBox(height: 20),
+
+                      if (_formError != null) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.red.shade200),
+                          ),
+                          child: Text(
+                            _formError!,
+                            style: TextStyle(
+                              color: Colors.red.shade800,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 16),
+                      ],
                       
                       // قسم الصورة
                       Text(
@@ -510,7 +682,7 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () => Get.back(),
+                      onPressed: _isSavingProduct ? null : closeDashboardDialog,
                       style: OutlinedButton.styleFrom(
                         padding: EdgeInsets.symmetric(vertical: 12),
                         side: BorderSide(color: Colors.grey),
@@ -527,7 +699,7 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
                         foregroundColor: Colors.white,
                         padding: EdgeInsets.symmetric(vertical: 12),
                       ),
-                      child: _isUploadingImages
+                      child: (_isUploadingImages || _isSavingProduct)
                           ? Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -540,7 +712,7 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
                                   ),
                                 ),
                                 SizedBox(width: 8),
-                                Text('جاري رفع الصور...'),
+                                Text(_isUploadingImages ? 'جاري رفع الصور...' : 'جاري الحفظ...'),
                               ],
                             )
                           : Text(
@@ -881,8 +1053,36 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
     );
   }
 
+  /// يقبل أرقامًا مع مسافات أو فواصل آلاف.
+  int? _parsePrice(String? value) {
+    if (value == null) return null;
+    final cleaned = value
+        .trim()
+        .replaceAll(',', '')
+        .replaceAll('،', '')
+        .replaceAll(' ', '')
+        .replaceAll('\u00A0', '');
+    if (cleaned.isEmpty) return null;
+    return int.tryParse(cleaned);
+  }
+
+  void _setFormError(String message) {
+    if (!mounted) return;
+    setState(() => _formError = message);
+  }
+
   void _saveProduct() async {
-    if (!_formKey.currentState!.validate()) return;
+    setState(() => _formError = null);
+
+    final formOk = _formKey.currentState?.validate() ?? false;
+    if (!formOk) {
+      _setFormError('يرجى إكمال الحقول المطلوبة (الأسعار، الفئة، الفرع)');
+      return;
+    }
+    if (!_showForStore && !_showForCustomer) {
+      _setFormError('يجب تفعيل العرض للمتجر أو للزبون على الأقل');
+      return;
+    }
     if (_isSavingProduct) return;
     _isSavingProduct = true;
     if (mounted) setState(() {});
@@ -906,21 +1106,11 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
             images = uploadedUrls;
             imageUrl = uploadedUrls.first;
           } else {
-            Get.snackbar(
-              'خطأ',
-              'فشل في رفع الصور',
-              backgroundColor: Colors.red,
-              colorText: Colors.white,
-            );
+            _setFormError('فشل في رفع الصور');
             return;
           }
         } catch (e) {
-          Get.snackbar(
-            'خطأ',
-            'فشل في رفع الصور: $e',
-            backgroundColor: Colors.red,
-            colorText: Colors.white,
-          );
+          _setFormError('فشل في رفع الصور: $e');
           return;
         } finally {
           if (mounted) {
@@ -931,7 +1121,35 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
         }
       } else if (imageUrl.isNotEmpty) {
         images = [imageUrl];
+      } else if (widget.product != null) {
+        images = widget.product!.images;
+        imageUrl = widget.product!.image;
       }
+
+      final parsedStorePrice = _parsePrice(_priceController.text);
+      final parsedCustomerPrice = _parsePrice(_customerPriceController.text);
+      final storePrice = parsedStorePrice ?? widget.product?.price ?? 0;
+      final customerPrice = _showForCustomer ? parsedCustomerPrice : null;
+
+      if (_showForCustomer && customerPrice == null) {
+        _setFormError('يرجى إدخال سعر زبون صحيح');
+        return;
+      }
+      if (_showForStore && parsedStorePrice == null) {
+        _setFormError('يرجى إدخال سعر متجر صحيح');
+        return;
+      }
+
+      final category = _selectedCategory ??
+          int.tryParse(_categoryController.text.trim()) ??
+          widget.product?.category ??
+          0;
+      if (category == 0) {
+        _setFormError('يرجى اختيار الفئة');
+        return;
+      }
+
+      final branch = _normalizeBranch(_selectedBranch);
 
       final docId = widget.product?.id ??
           FirebaseFirestore.instance.collection('products').doc().id;
@@ -939,23 +1157,50 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
         id: docId,
         title: _nameController.text.trim(),
         description: _descriptionController.text.trim(),
-        price: int.parse(_priceController.text),
+        price: storePrice,
+        customerPrice: customerPrice,
         image: imageUrl,
-        images: images,
-        category: int.parse(_categoryController.text),
+        images: images.isNotEmpty
+            ? images
+            : (widget.product?.images ?? const <String>[]),
+        category: category,
         active: _isActive,
         originalId: widget.product?.originalId ??
             DateTime.now().microsecondsSinceEpoch,
         createdAt: widget.product?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
-        branch: _selectedBranch,
+        branch: branch,
         brand: _brandController.text.trim().isEmpty ? null : _brandController.text.trim(),
         model: _modelController.text.trim().isEmpty ? null : _modelController.text.trim(),
         subCategory: _selectedSubCategory,
+        posLink: widget.product?.posLink,
+        stock: widget.product?.stock,
+        branchMessages: widget.product?.branchMessages,
+        showForStore: _showForStore,
+        showForCustomer: _showForCustomer,
       );
 
-      Get.back();
-      widget.onSave(product);
+      final success = await widget.onSave(product);
+      if (!mounted) return;
+
+      if (success) {
+        closeDashboardDialog();
+        Future.delayed(const Duration(milliseconds: 150), () {
+          Get.snackbar(
+            'تم',
+            widget.product == null
+                ? 'تم إضافة المنتج بنجاح'
+                : 'تم حفظ تعديلات المنتج',
+            backgroundColor: Colors.green,
+            colorText: Colors.white,
+            snackPosition: SnackPosition.TOP,
+          );
+        });
+      } else {
+        _setFormError('فشل حفظ المنتج في قاعدة البيانات. حاول مرة أخرى');
+      }
+    } catch (e) {
+      _setFormError('فشل الحفظ: $e');
     } finally {
       _isSavingProduct = false;
       if (mounted) setState(() {});

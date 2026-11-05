@@ -1,9 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'firebase_options.dart';
+import 'dnz_notifications.dart';
+import 'services/dnz_push_service.dart';
 import 'views/dashboard_home_screen.dart';
 import 'views/products_management_screen.dart';
 import 'views/users_management_screen.dart';
@@ -14,6 +18,9 @@ import 'views/sliders_management_screen.dart';
 import 'views/categories_management_screen.dart';
 import 'views/customer_requests_screen.dart';
 import 'views/customer_orders_screen.dart';
+import 'views/product_linking_screen.dart';
+import 'views/payment_gateway_screen.dart';
+import 'views/customer_prices_screen.dart';
 import 'controllers/user_controller.dart';
 import 'controllers/product_controller.dart';
 import 'controllers/category_controller.dart';
@@ -26,13 +33,16 @@ import 'controllers/customer_request_controller.dart';
 import 'services/audio_service.dart';
 
 final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
-const AndroidNotificationChannel _highImportanceChannel = AndroidNotificationChannel(
-  'high_importance_channel_v4',
+
+/// نفس قناة DNZ/Cloud Functions — مع صوت الداشبورد الحالي.
+const AndroidNotificationChannel _dnzPushChannel = AndroidNotificationChannel(
+  'vcenter_push_v3',
   'إشعارات الداشبورد',
-  description: 'تنبيهات مهمة مع صوت',
+  description: 'تنبيهات DNZ مع صوت',
   importance: Importance.max,
   playSound: true,
   sound: RawResourceAndroidNotificationSound('vcenter_notify'),
+  enableVibration: true,
 );
 
 void main() async {
@@ -45,6 +55,12 @@ void main() async {
 
   // تهيئة FCM للداشبورد
   await FirebaseMessaging.instance.requestPermission(alert: true, badge: true, sound: true);
+  if (Platform.isAndroid) {
+    final notificationStatus = await Permission.notification.status;
+    if (!notificationStatus.isGranted) {
+      await Permission.notification.request();
+    }
+  }
   await FirebaseMessaging.instance.setAutoInitEnabled(true);
   await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
     alert: true,
@@ -56,37 +72,44 @@ void main() async {
   await _localNotifications.initialize(initSettings);
   await _localNotifications
       .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-      ?.createNotificationChannel(_highImportanceChannel);
+      ?.createNotificationChannel(_dnzPushChannel);
 
-  FirebaseMessaging.onMessage.listen((message) {
-    final title = message.notification?.title ?? 'إشعار جديد';
-    final body = message.notification?.body ?? '';
+  await DnzPushService.ensureInitialized();
+  DNZNotifications.instance.onMessage((msg) {
+    final title = msg['title']?.toString() ?? 'إشعار جديد';
+    final body = msg['body']?.toString() ?? '';
     AudioService().playNewOrderSound();
-    _localNotifications.show(
-      message.messageId.hashCode,
-      title,
-      body,
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          _highImportanceChannel.id,
-          _highImportanceChannel.name,
-          channelDescription: _highImportanceChannel.description,
-          importance: Importance.max,
-          priority: Priority.high,
-          playSound: true,
-          sound: const RawResourceAndroidNotificationSound('vcenter_notify'),
-          enableVibration: true,
-          icon: '@mipmap/launcher_icon',
-        ),
-      ),
-    );
     Get.snackbar(
       title,
       body,
       backgroundColor: Colors.green,
       colorText: Colors.white,
       snackPosition: SnackPosition.TOP,
-      duration: Duration(seconds: 4),
+      duration: const Duration(seconds: 4),
+    );
+  });
+
+  // FCM احتياط فقط إذا WebSocket DNZ غير متصل (بدون تكرار)
+  FirebaseMessaging.onMessage.listen((message) {
+    if (DNZNotifications.instance.isWebSocketConnected) {
+      print('📱 FCM skipped (DNZ WebSocket connected)');
+      return;
+    }
+    final title = message.notification?.title ??
+        message.data['title']?.toString() ??
+        'إشعار جديد';
+    final body = message.notification?.body ??
+        message.data['body']?.toString() ??
+        message.data['message']?.toString() ??
+        '';
+    AudioService().playNewOrderSound();
+    Get.snackbar(
+      title,
+      body,
+      backgroundColor: Colors.green,
+      colorText: Colors.white,
+      snackPosition: SnackPosition.TOP,
+      duration: const Duration(seconds: 4),
     );
   });
 
@@ -149,6 +172,9 @@ class DashboardApp extends StatelessWidget {
           GetPage(name: '/new_users', page: () => NewUsersReviewScreen()),
           GetPage(name: '/customer_requests', page: () => CustomerRequestsScreen()),
           GetPage(name: '/customer_orders', page: () => CustomerOrdersScreen()),
+          GetPage(name: '/product_linking', page: () => const ProductLinkingScreen()),
+          GetPage(name: '/payment_gateway', page: () => PaymentGatewayScreen()),
+          GetPage(name: '/customer_prices', page: () => const CustomerPricesScreen()),
         ],
     );
   }

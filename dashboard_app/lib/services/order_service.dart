@@ -2,14 +2,49 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/order_model.dart';
+import '../utils/cancelled_order_utils.dart';
 
 class OrderService {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
   static const String _collection = 'bills';
 
+  /// حذف الطلبات الملغية بعد 15 دقيقة من الإلغاء.
+  static Future<int> purgeExpiredCancelledOrders() async {
+    var deleted = 0;
+    try {
+      final now = DateTime.now();
+      final snap = await _db
+          .collection(_collection)
+          .where('orderstatus', isEqualTo: 'ملغي')
+          .get();
+      WriteBatch? batch = _db.batch();
+      var batchCount = 0;
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        if (!shouldDeleteCancelledOrder(data, now)) continue;
+        batch!.delete(doc.reference);
+        batchCount++;
+        deleted++;
+        if (batchCount >= 500) {
+          await batch.commit();
+          batch = _db.batch();
+          batchCount = 0;
+        }
+      }
+      if (batchCount > 0) await batch!.commit();
+      if (deleted > 0) {
+        print('🗑️ OrderService - حذف $deleted طلب ملغي منتهي');
+      }
+    } catch (e) {
+      print('❌ OrderService - خطأ purge الطلبات الملغية: $e');
+    }
+    return deleted;
+  }
+
   // جلب جميع الطلبات
   static Future<List<OrderModel>> getAllOrders({String? branch}) async {
     try {
+      await purgeExpiredCancelledOrders();
       Query query = _db.collection(_collection);
       
       // فلترة حسب الفرع (المسؤول يعرض الكل)
@@ -119,7 +154,15 @@ class OrderService {
   }
 
   // تحديث حالة الطلب
-  static Future<bool> updateOrderStatus(String orderId, int newStatus, String newOrderStatus, {String? deliveryTime}) async {
+  static Future<bool> updateOrderStatus(
+    String orderId,
+    int newStatus,
+    String newOrderStatus, {
+    String? deliveryTime,
+    String? customerMessage,
+    int? deliveryDurationMinutes,
+    DateTime? deliveryDeadlineAt,
+  }) async {
     try {
       print('OrderService: بدء تحديث حالة الطلب في Firebase');
       print('OrderService: معرف الطلب: $orderId');
@@ -146,7 +189,27 @@ class OrderService {
       // إضافة وقت التوصيل إذا تم توفيره
       if (deliveryTime != null && deliveryTime.isNotEmpty) {
         updateData['deliveryTime'] = deliveryTime;
-        print('OrderService: إضافة وقت التوصيل: $deliveryTime');
+      }
+
+      if (customerMessage != null) {
+        final trimmed = customerMessage.trim();
+        if (trimmed.isEmpty) {
+          updateData['customerMessage'] = FieldValue.delete();
+        } else {
+          updateData['customerMessage'] = trimmed;
+        }
+      }
+
+      if (deliveryDurationMinutes != null && deliveryDurationMinutes > 0) {
+        updateData['deliveryDurationMinutes'] = deliveryDurationMinutes;
+      }
+      if (deliveryDeadlineAt != null) {
+        updateData['deliveryDeadlineAt'] =
+            Timestamp.fromDate(deliveryDeadlineAt);
+      }
+      
+      if (newOrderStatus == 'ملغي' || newStatus == 3) {
+        updateData['cancelledAt'] = FieldValue.serverTimestamp();
       }
       
       // تحديث الطلب
@@ -184,6 +247,72 @@ class OrderService {
       print('خطأ في حذف الطلب: $e');
       return false;
     }
+  }
+
+  /// حذف عدة طلبات دفعة واحدة (حد Firestore: 500 لكل دفعة).
+  static Future<int> deleteOrders(List<String> orderIds) async {
+    if (orderIds.isEmpty) return 0;
+    var deleted = 0;
+    try {
+      for (var i = 0; i < orderIds.length; i += 500) {
+        final batch = _db.batch();
+        final chunk = orderIds.skip(i).take(500).toList();
+        for (final id in chunk) {
+          batch.delete(_db.collection(_collection).doc(id));
+        }
+        await batch.commit();
+        deleted += chunk.length;
+      }
+    } catch (e) {
+      print('خطأ في حذف الطلبات: $e');
+    }
+    return deleted;
+  }
+
+  /// تحديث حالة عدة طلبات دفعة واحدة.
+  static Future<int> updateOrdersStatus(
+    List<String> orderIds,
+    int newStatus,
+    String newOrderStatus, {
+    String? deliveryTime,
+    int? deliveryDurationMinutes,
+    DateTime? deliveryDeadlineAt,
+  }) async {
+    if (orderIds.isEmpty) return 0;
+    var updated = 0;
+    try {
+      for (var i = 0; i < orderIds.length; i += 500) {
+        final batch = _db.batch();
+        final chunk = orderIds.skip(i).take(500).toList();
+        for (final id in chunk) {
+          final updateData = <String, dynamic>{
+            'status': newStatus,
+            'orderstatus': newOrderStatus,
+            'updatedAt': FieldValue.serverTimestamp(),
+          };
+          if (newOrderStatus == 'ملغي' || newStatus == 3) {
+            updateData['cancelledAt'] = FieldValue.serverTimestamp();
+          }
+          if (deliveryTime != null && deliveryTime.isNotEmpty) {
+            updateData['deliveryTime'] = deliveryTime;
+          }
+          if (deliveryDurationMinutes != null &&
+              deliveryDurationMinutes > 0) {
+            updateData['deliveryDurationMinutes'] = deliveryDurationMinutes;
+          }
+          if (deliveryDeadlineAt != null) {
+            updateData['deliveryDeadlineAt'] =
+                Timestamp.fromDate(deliveryDeadlineAt);
+          }
+          batch.update(_db.collection(_collection).doc(id), updateData);
+        }
+        await batch.commit();
+        updated += chunk.length;
+      }
+    } catch (e) {
+      print('خطأ في تحديث حالة الطلبات: $e');
+    }
+    return updated;
   }
 
   // إضافة طلب جديد
@@ -304,6 +433,7 @@ class OrderService {
   /// كل طلبات الزبائن — بدون قيد فرع (لقسم طلبات الزبائن)
   static Future<List<OrderModel>> getCustomerOrders() async {
     try {
+      await purgeExpiredCancelledOrders();
       final querySnapshot = await _db
           .collection(_collection)
           .where('userType', isEqualTo: 'زبون')

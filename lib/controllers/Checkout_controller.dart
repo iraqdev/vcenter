@@ -6,6 +6,7 @@ import 'package:ecommerce/controllers/OrderStatusController.dart';
 import 'package:ecommerce/controllers/OrdersController.dart';
 import 'package:ecommerce/main.dart';
 import 'package:ecommerce/utils/delivery_utils.dart';
+import 'package:ecommerce/utils/quantity_discount_utils.dart';
 
 class Checkout_controller extends GetxController {
   var isPay = false.obs;
@@ -84,12 +85,18 @@ class Checkout_controller extends GetxController {
       var cartItem = BoxCart.getAt(x);
       if (cartItem != null) {
         // Convert cartItem to Map<String, dynamic> if needed
+        final count = cartItem.count;
+        final unitPrice = cartItem.price;
         var mappedItem = {
           'title': cartItem.title,
           'image': cartItem.image,
-          'count': cartItem.count,
+          'count': count,
           'id': cartItem.id,
-          'price': cartItem.price,
+          'price': unitPrice,
+          'lineTotal': lineTotalWithQuantityDiscount(
+            unitPrice: unitPrice,
+            quantity: count,
+          ),
           'color': cartItem.color,
           'size': cartItem.size,
         };

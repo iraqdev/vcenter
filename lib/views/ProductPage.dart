@@ -11,6 +11,7 @@ import 'package:ecommerce/controllers/Product_controller.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../main.dart';
 import '../utils/price_utils.dart';
+import '../utils/quantity_discount_utils.dart';
 import '../utils/whatsapp_helper.dart';
 
 class ProductPage extends StatefulWidget {
@@ -577,36 +578,88 @@ class _ProductPageState extends State<ProductPage> {
         SizedBox(height: 12),
         GetBuilder<Product_controller>(
           builder: (c) {
-            return Container(
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: Colors.grey[300]!),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.remove, color: Colors.deepPurple),
-                    onPressed: controller.outCounter,
+            final unitPrice = priceForUser(
+              controller.productItemList[0].price,
+              customerPrice: controller.productItemList[0].customerPrice,
+            );
+            final lineTotal = lineTotalWithQuantityDiscount(
+              unitPrice: unitPrice,
+              quantity: c.count,
+            );
+            final savings = quantityDiscountSavings(
+              unitPrice: unitPrice,
+              quantity: c.count,
+            );
+            final minQuantity = quantityDiscountConfig.minQuantity;
+            final discountPieces = quantityDiscountConfig.discountPieces;
+            final percent = quantityDiscountConfig.percent;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: Colors.grey[300]!),
                   ),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.remove, color: Colors.deepPurple),
+                        onPressed: controller.outCounter,
+                      ),
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        child: Text(
+                          '${c.count}',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.add, color: Colors.deepPurple),
+                        onPressed: controller.inCounter,
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  'المجموع: ${formatter.format(lineTotal)} ${'18'.tr}',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.deepPurple,
+                  ),
+                ),
+                if (savings > 0)
+                  Padding(
+                    padding: EdgeInsets.only(top: 4),
                     child: Text(
-                      '${c.count}',
+                      'تخفيض $percent% على $discountPieces قطع — وفّرت ${formatter.format(savings)} ${'18'.tr}',
                       style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        fontSize: 13,
+                        color: Colors.green[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  )
+                else if (percent > 0)
+                  Padding(
+                    padding: EdgeInsets.only(top: 4),
+                    child: Text(
+                      'اشترِ $minQuantity قطع أو أكثر للحصول على تخفيض $percent% على $discountPieces قطع',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
                       ),
                     ),
                   ),
-                  IconButton(
-                    icon: Icon(Icons.add, color: Colors.deepPurple),
-                    onPressed: controller.inCounter,
-                  ),
-                ],
-              ),
+              ],
             );
           },
         ),

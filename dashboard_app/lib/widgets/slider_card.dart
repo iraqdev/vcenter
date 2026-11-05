@@ -49,6 +49,26 @@ class SliderCard extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
+                if (slider.link.trim().isNotEmpty) ...[
+                  SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Icon(Icons.link, size: 16, color: Colors.blueGrey),
+                      SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          slider.link,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blueGrey[700],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 SizedBox(height: 8),
                 
                 // حالة العرض

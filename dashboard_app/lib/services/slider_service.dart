@@ -64,6 +64,7 @@ class SliderService {
       final docRef = await _db.collection(_collection).add({
         'title': slider.title,
         'image': slider.image,
+        'link': slider.link,
         'active': slider.active,
         'originalId': slider.originalId,
         'createdAt': FieldValue.serverTimestamp(),
@@ -84,6 +85,7 @@ class SliderService {
       await _db.collection(_collection).doc(id).update({
         'title': slider.title,
         'image': slider.image,
+        'link': slider.link,
         'active': slider.active,
         'originalId': slider.originalId,
         'updatedAt': FieldValue.serverTimestamp(),

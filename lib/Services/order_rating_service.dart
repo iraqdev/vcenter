@@ -131,4 +131,32 @@ class OrderRatingService {
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
+
+  /// عند انتهاء عدّاد التوصيل: تحويل الحالة تلقائياً إلى تم الاستلام.
+  static Future<bool> markDeliveredByCountdown(int orderOriginalId) async {
+    try {
+      final billQuery = await _db
+          .collection('bills')
+          .where('originalId', isEqualTo: orderOriginalId)
+          .limit(1)
+          .get();
+      if (billQuery.docs.isEmpty) return false;
+
+      final data = billQuery.docs.first.data();
+      final current = (data['orderstatus'] ?? '').toString().trim();
+      if (isDeliveredStatus(current)) return true;
+
+      await billQuery.docs.first.reference.update({
+        'status': 2,
+        'orderstatus': 'تم الاستلام',
+        'updatedAt': FieldValue.serverTimestamp(),
+        'autoDeliveredAt': FieldValue.serverTimestamp(),
+        'autoDeliveredReason': 'delivery_countdown_ended',
+      });
+      return true;
+    } catch (e) {
+      print('OrderRatingService.markDeliveredByCountdown: $e');
+      return false;
+    }
+  }
 }

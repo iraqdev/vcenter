@@ -9,6 +9,8 @@ class NotificationController extends GetxController {
 
   // حالة التحميل
   final RxBool isLoading = false.obs;
+  /// إرسال جارٍ — منفصل عن isLoading حتى لا تتجمّد شاشة القائمة خلف الدايلوك
+  final RxBool isSending = false.obs;
   final RxString errorMessage = ''.obs;
 
   // البحث والفلترة
@@ -183,6 +185,7 @@ class NotificationController extends GetxController {
     String? actionUrl,
     Map<String, dynamic>? data,
     String? branch, // فلترة حسب الفرع
+    String? userType, // زبون = الزبائن فقط
   }) async {
     try {
       isLoading.value = true;
@@ -192,7 +195,8 @@ class NotificationController extends GetxController {
         imageUrl: imageUrl,
         actionUrl: actionUrl,
         data: data,
-        branch: branch, // تمرير معامل الفرع
+        branch: branch,
+        userType: userType,
       );
 
       if (result['success']) {
@@ -388,9 +392,10 @@ class NotificationController extends GetxController {
     String? actionUrl,
     Map<String, dynamic>? data,
     String? branch,
+    String? userType,
   }) async {
     try {
-      isLoading.value = true;
+      isSending.value = true;
       errorMessage.value = '';
       
       final result = await NotificationService.sendCustomNotificationToAll(
@@ -400,10 +405,14 @@ class NotificationController extends GetxController {
         actionUrl: actionUrl,
         data: data,
         branch: branch,
+        userType: userType,
       );
       
       if (result['success'] == true) {
-        await fetchNotifications();
+        // تحديث القائمة بدون تعطيل الدايلوك عبر isLoading
+        final fetched = await NotificationService.getAllNotifications();
+        notifications.value = fetched;
+        _applyFilters();
         await fetchStats();
       }
       
@@ -417,7 +426,7 @@ class NotificationController extends GetxController {
         'message': 'خطأ في إرسال الإشعار المخصص: $e',
       };
     } finally {
-      isLoading.value = false;
+      isSending.value = false;
     }
   }
 
@@ -431,7 +440,7 @@ class NotificationController extends GetxController {
     Map<String, dynamic>? data,
   }) async {
     try {
-      isLoading.value = true;
+      isSending.value = true;
       errorMessage.value = '';
       
       final result = await NotificationService.sendCustomNotificationToSpecificUser(
@@ -443,8 +452,10 @@ class NotificationController extends GetxController {
         data: data,
       );
       
-      if (result['success']) {
-        await fetchNotifications();
+      if (result['success'] == true) {
+        final fetched = await NotificationService.getAllNotifications();
+        notifications.value = fetched;
+        _applyFilters();
         await fetchStats();
       }
       
@@ -458,7 +469,7 @@ class NotificationController extends GetxController {
         'message': 'خطأ في إرسال الإشعار المخصص للمستخدم المحدد: $e',
       };
     } finally {
-      isLoading.value = false;
+      isSending.value = false;
     }
   }
 

@@ -4,6 +4,7 @@ class SliderModel {
   final String id;
   final String title;
   final String image;
+  final String link;
   final bool active;
   final int? originalId;
   final DateTime? createdAt;
@@ -13,6 +14,7 @@ class SliderModel {
     required this.id,
     required this.title,
     required this.image,
+    this.link = '',
     this.active = true,
     this.originalId,
     this.createdAt,
@@ -26,6 +28,7 @@ class SliderModel {
         id: id,
         title: data['title']?.toString() ?? '',
         image: data['image']?.toString() ?? '',
+        link: data['link']?.toString() ?? '',
         active: data['active'] is bool ? data['active'] : true,
         originalId: data['originalId'] is int ? data['originalId'] : null,
         createdAt: data['createdAt'] is Timestamp ? data['createdAt'].toDate() : null,
@@ -43,6 +46,7 @@ class SliderModel {
     return {
       'title': title,
       'image': image,
+      'link': link,
       'active': active,
       'originalId': originalId,
       'createdAt': createdAt,
@@ -55,6 +59,7 @@ class SliderModel {
     String? id,
     String? title,
     String? image,
+    String? link,
     bool? active,
     int? originalId,
     DateTime? createdAt,
@@ -64,6 +69,7 @@ class SliderModel {
       id: id ?? this.id,
       title: title ?? this.title,
       image: image ?? this.image,
+      link: link ?? this.link,
       active: active ?? this.active,
       originalId: originalId ?? this.originalId,
       createdAt: createdAt ?? this.createdAt,
@@ -73,7 +79,7 @@ class SliderModel {
 
   @override
   String toString() {
-    return 'SliderModel(id: $id, title: $title, image: $image, active: $active)';
+    return 'SliderModel(id: $id, title: $title, image: $image, link: $link, active: $active)';
   }
 
   @override
@@ -83,11 +89,12 @@ class SliderModel {
         other.id == id &&
         other.title == title &&
         other.image == image &&
+        other.link == link &&
         other.active == active;
   }
 
   @override
   int get hashCode {
-    return id.hashCode ^ title.hashCode ^ image.hashCode ^ active.hashCode;
+    return id.hashCode ^ title.hashCode ^ image.hashCode ^ link.hashCode ^ active.hashCode;
   }
 }

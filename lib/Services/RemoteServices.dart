@@ -12,8 +12,8 @@ import 'package:ecommerce/models/SizeModel.dart';
 import 'package:ecommerce/models/UserInfo.dart';
 import '../models/Slider.dart';
 import 'package:ecommerce/utils/image_utils.dart';
+import 'package:ecommerce/utils/price_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../utils/cancelled_order_utils.dart';
 
 class RemoteServices {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -34,6 +34,24 @@ class RemoteServices {
       byId[p.id] = p;
     }
     return byId.values.toList();
+  }
+
+  /// بدون الحقل = يظهر للمتجر والزبون (افتراضي true).
+  static bool _isProductVisibleForCurrentUser(Map<String, dynamic> data) {
+    final showForStore = data['showForStore'] is bool
+        ? data['showForStore'] as bool
+        : true;
+    final showForCustomer = data['showForCustomer'] is bool
+        ? data['showForCustomer'] as bool
+        : true;
+    if (isCustomerUser) return showForCustomer;
+    return showForStore;
+  }
+
+  static List<Map<String, dynamic>> _filterProductsForAudience(
+    Iterable<Map<String, dynamic>> list,
+  ) {
+    return list.where(_isProductVisibleForCurrentUser).toList();
   }
   static const String _colProducts = 'products';
   static const String _colCategories = 'categories';
@@ -277,6 +295,7 @@ class RemoteServices {
           return pBranch == branch || pBranch == 'all' || pBranch.isEmpty;
         }).toList();
       }
+      list = _filterProductsForAudience(list);
       
       print('📊 RemoteServices - تم جلب ${list.length} منتج');
       
@@ -333,7 +352,9 @@ class RemoteServices {
         final pBranch = data['branch']?.toString() ?? '';
         final branchMatch = branch == null || branch.isEmpty || branch == 'المسؤول' ||
             pBranch == branch || pBranch == 'all' || pBranch.isEmpty;
-        return (productTitle.contains(searchQuery) || productDescription.contains(searchQuery)) && branchMatch;
+        return (productTitle.contains(searchQuery) || productDescription.contains(searchQuery)) &&
+            branchMatch &&
+            _isProductVisibleForCurrentUser(data);
       }).toList();
       
       final jsonStr = jsonEncode(filteredProducts.map((data) => {
@@ -382,6 +403,7 @@ class RemoteServices {
           return pBranch == branch || pBranch == 'all' || pBranch.isEmpty;
         }).toList();
       }
+      list = _filterProductsForAudience(list);
       list.sort((a, b) {
         final aDate = a['createdAt'];
         final bDate = b['createdAt'];
@@ -698,6 +720,7 @@ class RemoteServices {
           .get();
       if (snap.docs.isEmpty) return null;
       final data = snap.docs.first.data();
+      if (!_isProductVisibleForCurrentUser(data)) return null;
       final jsonStr = jsonEncode({
         'id': data['originalId'] ?? 0,
         'title': data['title'] ?? '',
@@ -743,7 +766,7 @@ class RemoteServices {
           .where('subCategory', isEqualTo: idCat)
           .limit(limit ?? 50)
           .get();
-      final list = snap.docs.map((d) => d.data()).toList();
+      final list = _filterProductsForAudience(snap.docs.map((d) => d.data()));
       final jsonStr = jsonEncode(list.map((data) => {
         'id': data['originalId'] ?? 0,
         'title': data['title'] ?? '',
@@ -896,7 +919,7 @@ class RemoteServices {
             .where('subCategory', isEqualTo: subCategoryId)
             .limit(100)
             .get();
-        final list = snap.docs.map((d) => d.data()).toList();
+        final list = _filterProductsForAudience(snap.docs.map((d) => d.data()));
         final jsonStr = jsonEncode(list.map((data) => {
           'id': data['originalId'] ?? 0,
           'title': data['title'] ?? '',
@@ -922,10 +945,13 @@ class RemoteServices {
           .endAt([q + '\uf8ff'])
           .limit(200)
           .get();
-      final list = byTitle.docs
-          .map((d) => d.data())
-          .where((data) => (data['category'] == categoryId) && (data['subCategory'] == subCategoryId))
-          .toList();
+      final list = _filterProductsForAudience(
+        byTitle.docs
+            .map((d) => d.data())
+            .where((data) =>
+                (data['category'] == categoryId) &&
+                (data['subCategory'] == subCategoryId)),
+      );
       final jsonStr = jsonEncode(list.map((data) => {
         'id': data['originalId'] ?? 0,
         'title': data['title'] ?? '',

@@ -1,7 +1,16 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ecommerce/utils/price_utils.dart';
 
 class FirebaseService {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  static bool _isVisibleForCurrentUser(Map<String, dynamic> p) {
+    final showForStore = p['showForStore'] is bool ? p['showForStore'] as bool : true;
+    final showForCustomer =
+        p['showForCustomer'] is bool ? p['showForCustomer'] as bool : true;
+    if (isCustomerUser) return showForCustomer;
+    return showForStore;
+  }
 
   static Future<List<Map<String, dynamic>>?> getProducts({String? branch}) async {
     try {
@@ -18,6 +27,7 @@ class FirebaseService {
               pBranch.toString().isEmpty;
         }).toList();
       }
+      products = products.where(_isVisibleForCurrentUser).toList();
       print('✅ FirebaseService - تم جلب ${products.length} منتج');
       
       // طباعة تفاصيل المنتجات للتشخيص

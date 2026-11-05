@@ -127,13 +127,6 @@ async function registerUserWithDnz({ phone, fcmToken, apnsToken, platform, userR
       dnzRegisterError: admin.firestore.FieldValue.delete(),
       pushPlatform: resolvedPlatform,
     }, { merge: true });
-  } else if (userRef) {
-    await userRef.set({
-      dnzRegisterError: result.error || `http_${result.status}`,
-      dnzRegisterStatus: result.status || 0,
-      dnzRegisterPayload: result.payload || null,
-      dnzRegisterAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
   }
 
   return { ok: result.ok, recipientId, result };
@@ -217,15 +210,15 @@ async function sendFcmToTokens({ tokens, title, message, data = {}, imageUrl, ac
     android: {
       priority: 'high',
       notification: {
-        channelId: 'high_importance_channel_v4',
-        sound: 'vcenter_notify',
+        channelId: 'vcenter_push_v3',
+        sound: 'default',
         ...(imageUrl ? { imageUrl } : {}),
       },
     },
     apns: {
       payload: {
         aps: {
-          sound: 'vcenter_notify.wav',
+          sound: 'default',
           contentAvailable: true,
         },
       },
@@ -301,44 +294,94 @@ exports.sendNotificationToUsers = functions.https.onCall(async (data) => {
     let failedCount = 0;
     let invalidTokens = [];
     let transport = 'none';
+    const fcmFallbackTokens = [];
 
     for (const doc of matchedDocs) {
-      const user = doc.data() || {};
-      const phone = toStringSafe(user.phone);
-      const token = toStringSafe(user.fcmToken);
-      const apnsToken = toStringSafe(user.apnsToken);
-      const pushPlatform = toStringSafe(user.pushPlatform);
-      const storedRecipientId = toStringSafe(user.dnzRecipientId);
+      try {
+        const user = doc.data() || {};
+        const phone = toStringSafe(user.phone);
+        const token = toStringSafe(user.fcmToken);
+        const apnsToken = toStringSafe(user.apnsToken);
+        const pushPlatform = toStringSafe(user.pushPlatform);
+        const storedRecipientId = toStringSafe(user.dnzRecipientId);
 
-      if (!phone) {
+        if (!phone && !token && !apnsToken) {
+          failedCount += 1;
+          continue;
+        }
+
+        let sentViaDnz = false;
+
+        if (dnzCfg.apiKey && phone) {
+          try {
+            if (token || apnsToken) {
+              await registerUserWithDnz({
+                phone,
+                fcmToken: token || undefined,
+                apnsToken: apnsToken || undefined,
+                platform: pushPlatform || (apnsToken ? 'ios' : 'android'),
+                userRef: doc.ref,
+              });
+            }
+
+            const dnzResult = await sendDnzToRecipients({
+              recipientIds: recipientIdCandidates(phone, storedRecipientId),
+              title,
+              message,
+              data: payloadData,
+              imageUrl: imageUrl || undefined,
+              actionUrl: actionUrl || undefined,
+            });
+
+            if (dnzResult.sentCount > 0) {
+              sentCount += 1;
+              sentViaDnz = true;
+              transport = transport === 'fcm' || transport === 'mixed' ? 'mixed' : 'dnz';
+            }
+          } catch (dnzError) {
+            console.warn('sendNotificationToUsers: DNZ failed for user', phone, dnzError?.message || dnzError);
+          }
+        }
+
+        // احتياطي FCM إذا فشل DNZ أو غير متاح
+        if (!sentViaDnz) {
+          if (token) {
+            fcmFallbackTokens.push(token);
+          } else {
+            failedCount += 1;
+          }
+        }
+      } catch (userError) {
+        console.warn('sendNotificationToUsers: user loop error', userError?.message || userError);
         failedCount += 1;
-        continue;
       }
+    }
 
-      if (dnzCfg.apiKey && (token || apnsToken)) {
-        await registerUserWithDnz({
-          phone,
-          fcmToken: token || undefined,
-          apnsToken: apnsToken || undefined,
-          platform: pushPlatform || (apnsToken ? 'ios' : 'android'),
-          userRef: doc.ref,
-        });
-      }
-
-      const dnzResult = await sendDnzToRecipients({
-        recipientIds: recipientIdCandidates(phone, storedRecipientId),
-        title,
-        message,
-        data: payloadData,
-        imageUrl: imageUrl || undefined,
-        actionUrl: actionUrl || undefined,
-      });
-
-      if (dnzResult.sentCount > 0) {
-        sentCount += dnzResult.sentCount;
-        transport = 'dnz';
-      } else {
-        failedCount += dnzResult.failedCount || 1;
+    if (fcmFallbackTokens.length > 0) {
+      // FCM يدعم حتى 500 توكن لكل طلب
+      for (let i = 0; i < fcmFallbackTokens.length; i += 500) {
+        const chunk = fcmFallbackTokens.slice(i, i + 500);
+        try {
+          const fcmResult = await sendFcmToTokens({
+            tokens: chunk,
+            title,
+            message,
+            data: payloadData,
+            imageUrl: imageUrl || undefined,
+            actionUrl: actionUrl || undefined,
+          });
+          sentCount += fcmResult.successCount || 0;
+          failedCount += fcmResult.failureCount || 0;
+          if (fcmResult.invalidTokens?.length) {
+            invalidTokens.push(...fcmResult.invalidTokens);
+          }
+          if ((fcmResult.successCount || 0) > 0) {
+            transport = transport === 'dnz' || transport === 'mixed' ? 'mixed' : 'fcm';
+          }
+        } catch (fcmError) {
+          console.error('sendNotificationToUsers: FCM fallback failed', fcmError);
+          failedCount += chunk.length;
+        }
       }
     }
 
@@ -365,7 +408,9 @@ exports.sendNotificationToUsers = functions.https.onCall(async (data) => {
 
     return {
       success: sentCount > 0,
-      message: sentCount > 0 ? 'تم إرسال الإشعار بنجاح' : 'فشل في الإرسال',
+      message: sentCount > 0
+        ? `تم إرسال الإشعار بنجاح (${sentCount}) عبر ${transport}`
+        : 'فشل في الإرسال — تحقق من توكنات المستخدمين أو خدمة الإشعارات',
       sentCount,
       failedCount,
       invalidTokens,
@@ -512,14 +557,10 @@ exports.onUserPushTokenUpdated = functions.firestore
     if (!phone) return null;
     if (!fcmToken && !apnsToken) return null;
 
-    const expectedRecipientId = recipientIdForPhone(phone);
     const tokensUnchanged =
       fcmToken === toStringSafe(before.fcmToken) &&
       apnsToken === toStringSafe(before.apnsToken);
-    if (
-      tokensUnchanged &&
-      toStringSafe(after.dnzRecipientId) === expectedRecipientId
-    ) {
+    if (tokensUnchanged) {
       return null;
     }
 

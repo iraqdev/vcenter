@@ -5,11 +5,21 @@ import 'package:image_picker/image_picker.dart';
 import '../controllers/category_controller.dart';
 import '../models/category_model.dart';
 import '../services/image_service.dart';
+import '../utils/dashboard_dialog.dart';
 
 class CategoriesManagementScreen extends StatelessWidget {
   CategoriesManagementScreen({super.key});
 
   final CategoryController controller = Get.find<CategoryController>();
+
+  int _nextOriginalId() {
+    if (controller.categories.isEmpty) return 1;
+    var maxId = 0;
+    for (final c in controller.categories) {
+      if (c.originalId > maxId) maxId = c.originalId;
+    }
+    return maxId + 1;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,10 +31,22 @@ class CategoriesManagementScreen extends StatelessWidget {
         elevation: 0,
         actions: [
           IconButton(
+            icon: Icon(Icons.add),
+            tooltip: 'إضافة فئة',
+            onPressed: _showAddCategoryDialog,
+          ),
+          IconButton(
             icon: Icon(Icons.refresh),
             onPressed: () => controller.loadCategories(),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showAddCategoryDialog,
+        backgroundColor: Get.theme.primaryColor,
+        foregroundColor: Colors.white,
+        icon: Icon(Icons.add),
+        label: Text('إضافة فئة'),
       ),
       body: Obx(() {
         if (controller.isLoading.value && controller.categories.isEmpty) {
@@ -38,6 +60,16 @@ class CategoriesManagementScreen extends StatelessWidget {
                 Icon(Icons.category_outlined, size: 64, color: Colors.grey),
                 SizedBox(height: 16),
                 Text('لا توجد فئات', style: TextStyle(fontSize: 18, color: Colors.grey[600])),
+                SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: _showAddCategoryDialog,
+                  icon: Icon(Icons.add),
+                  label: Text('إضافة فئة جديدة'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurple,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
               ],
             ),
           );
@@ -58,6 +90,194 @@ class CategoriesManagementScreen extends StatelessWidget {
         );
       }),
     );
+  }
+
+  Future<void> _showAddCategoryDialog() async {
+    final titleController = TextEditingController();
+    File? imageFile;
+    bool isSaving = false;
+    String? formError;
+
+    await Get.dialog(
+      StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          return AlertDialog(
+            title: Text('إضافة فئة جديدة'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextField(
+                    controller: titleController,
+                    decoration: InputDecoration(
+                      labelText: 'اسم الفئة *',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (_) {
+                      if (formError != null) {
+                        setDialogState(() => formError = null);
+                      }
+                    },
+                  ),
+                  SizedBox(height: 20),
+                  Text(
+                    'صورة الفئة (تظهر في التطبيق)',
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  SizedBox(height: 8),
+                  Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: imageFile != null
+                            ? Image.file(
+                                imageFile!,
+                                width: 80,
+                                height: 80,
+                                fit: BoxFit.cover,
+                              )
+                            : _placeholderBox(),
+                      ),
+                      SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: isSaving
+                                ? null
+                                : () async {
+                                    final picker = ImagePicker();
+                                    final XFile? picked = await picker.pickImage(
+                                      source: ImageSource.gallery,
+                                    );
+                                    if (picked != null) {
+                                      setDialogState(() {
+                                        imageFile = File(picked.path);
+                                        formError = null;
+                                      });
+                                    }
+                                  },
+                            icon: Icon(Icons.photo_library, size: 20),
+                            label: Text('اختيار صورة'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.deepPurple,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                          if (imageFile != null)
+                            TextButton(
+                              onPressed: isSaving
+                                  ? null
+                                  : () => setDialogState(() => imageFile = null),
+                              child: Text(
+                                'إزالة الصورة',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  if (formError != null) ...[
+                    SizedBox(height: 12),
+                    Text(
+                      formError!,
+                      style: TextStyle(
+                        color: Colors.red.shade700,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: isSaving
+                    ? null
+                    : () => Navigator.of(dialogContext).pop(),
+                child: Text('إلغاء'),
+              ),
+              ElevatedButton(
+                onPressed: isSaving
+                    ? null
+                    : () async {
+                        final newTitle = titleController.text.trim();
+                        if (newTitle.isEmpty) {
+                          setDialogState(
+                            () => formError = 'أدخل اسم الفئة',
+                          );
+                          return;
+                        }
+
+                        setDialogState(() {
+                          isSaving = true;
+                          formError = null;
+                        });
+
+                        try {
+                          final originalId = _nextOriginalId();
+                          String imageUrl = '';
+                          if (imageFile != null) {
+                            final url = await ImageService.uploadCategoryImage(
+                              imageFile!,
+                              originalId,
+                            );
+                            if (url != null) imageUrl = url;
+                          }
+
+                          final category = CategoryModel(
+                            id: '',
+                            title: newTitle,
+                            image: imageUrl,
+                            originalId: originalId,
+                            active: true,
+                            createdAt: DateTime.now(),
+                            updatedAt: DateTime.now(),
+                          );
+
+                          final id = await controller.addCategory(category);
+                          if (!dialogContext.mounted) return;
+
+                          if (id != null) {
+                            Navigator.of(dialogContext).pop();
+                          } else {
+                            setDialogState(() {
+                              isSaving = false;
+                              formError = 'فشل إضافة الفئة. حاول مرة أخرى';
+                            });
+                          }
+                        } catch (e) {
+                          setDialogState(() {
+                            isSaving = false;
+                            formError = 'فشل الإضافة: $e';
+                          });
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepPurple,
+                  foregroundColor: Colors.white,
+                ),
+                child: isSaving
+                    ? SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text('إضافة'),
+              ),
+            ],
+          );
+        },
+      ),
+      barrierDismissible: false,
+    );
+
+    titleController.dispose();
   }
 
   Future<void> _showEditCategoryDialog(CategoryModel category) async {
@@ -144,7 +364,7 @@ class CategoriesManagementScreen extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back(),
+            onPressed: closeDashboardDialog,
             child: Text('إلغاء'),
           ),
           ElevatedButton(
@@ -154,7 +374,7 @@ class CategoriesManagementScreen extends StatelessWidget {
                 Get.snackbar('تنبيه', 'أدخل اسم الفئة');
                 return;
               }
-              Get.back();
+              closeDashboardDialog();
               String imageUrl = category.image;
               if (clearImage) {
                 imageUrl = '';

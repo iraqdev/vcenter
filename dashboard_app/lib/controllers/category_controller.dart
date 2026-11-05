@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../models/category_model.dart';
 import '../services/category_service.dart';
@@ -92,10 +93,26 @@ class CategoryController extends GetxController {
   // إضافة فئة جديدة
   Future<String?> addCategory(CategoryModel category) async {
     try {
+      // منع تكرار الاسم
+      final exists = categories.any(
+        (c) => c.title.trim().toLowerCase() == category.title.trim().toLowerCase(),
+      );
+      if (exists) {
+        Get.snackbar('تنبيه', 'يوجد فئة بنفس الاسم مسبقاً');
+        return null;
+      }
+
       final id = await CategoryService.addCategory(category);
       if (id != null) {
-        await loadCategories(); // إعادة تحميل الفئات
-        Get.snackbar('نجح', 'تم إضافة الفئة بنجاح');
+        await loadCategories();
+        Get.snackbar(
+          'نجح',
+          'تم إضافة الفئة بنجاح',
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
+      } else {
+        Get.snackbar('خطأ', 'فشل في إضافة الفئة');
       }
       return id;
     } catch (e) {

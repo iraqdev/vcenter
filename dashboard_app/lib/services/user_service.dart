@@ -134,8 +134,17 @@ class UserService {
     try {
       final users = await getAllUsers(branch: branch);
       if (searchQuery.isEmpty) return users;
-      final query = searchQuery.toLowerCase();
-      return users.where((u) => u.name.toLowerCase().contains(query)).toList();
+      final query = searchQuery.trim().toLowerCase();
+      final queryDigits = searchQuery.replaceAll(RegExp(r'\D'), '');
+      return users.where((u) {
+        if (u.name.toLowerCase().contains(query)) return true;
+        if (u.phone.contains(searchQuery.trim())) return true;
+        if (queryDigits.isNotEmpty) {
+          final phoneDigits = u.phone.replaceAll(RegExp(r'\D'), '');
+          if (phoneDigits.contains(queryDigits)) return true;
+        }
+        return false;
+      }).toList();
     } catch (e) {
       print('خطأ في البحث: $e');
       return [];

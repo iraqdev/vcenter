@@ -26,6 +26,9 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
 
   String _selectedType = 'all';
   String _selectedTarget = 'all_users';
+  String _selectedAudience = 'all';
+  bool _isSending = false;
+  String? _sendError;
 
   final List<Map<String, dynamic>> _notificationTypes = [
     {'value': 'all', 'label': 'عام', 'icon': Icons.notifications, 'color': Colors.blue},
@@ -38,6 +41,11 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
   final List<Map<String, dynamic>> _targetTypes = [
     {'value': 'all_users', 'label': 'جميع المستخدمين', 'icon': Icons.group},
     {'value': 'specific_user', 'label': 'مستخدم محدد', 'icon': Icons.person},
+  ];
+
+  final List<Map<String, dynamic>> _audienceTypes = [
+    {'value': 'all', 'label': 'الجميع (محلات + زبائن)', 'icon': Icons.groups},
+    {'value': 'customers', 'label': 'الزبائن فقط', 'icon': Icons.person_outline},
   ];
 
   @override
@@ -269,6 +277,71 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
                       // اختيار الفرع (عند إرسال لجميع المستخدمين)
                       if (_selectedTarget == 'all_users') ...[
                         Text(
+                          'الفئة المستهدفة',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        ..._audienceTypes.map((audience) => Container(
+                          margin: EdgeInsets.only(bottom: 8),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () {
+                                setState(() {
+                                  _selectedAudience = audience['value'];
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                padding: EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: _selectedAudience == audience['value']
+                                      ? Colors.teal.withOpacity(0.15)
+                                      : Colors.grey[100],
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: _selectedAudience == audience['value']
+                                        ? Colors.teal
+                                        : Colors.grey[300]!,
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      audience['icon'] as IconData,
+                                      color: _selectedAudience == audience['value']
+                                          ? Colors.teal
+                                          : Colors.grey[600],
+                                      size: 20,
+                                    ),
+                                    SizedBox(width: 12),
+                                    Text(
+                                      audience['label'] as String,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: _selectedAudience == audience['value']
+                                            ? Colors.teal
+                                            : Colors.black87,
+                                      ),
+                                    ),
+                                    if (_selectedAudience == audience['value'])
+                                      Spacer(),
+                                    if (_selectedAudience == audience['value'])
+                                      Icon(Icons.check_circle, color: Colors.teal, size: 20),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        )).toList(),
+                        SizedBox(height: 12),
+                        Text(
                           'الفرع (اختياري)',
                           style: TextStyle(
                             fontSize: 16,
@@ -435,6 +508,27 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
               ),
             ),
 
+            if (_sendError != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Text(
+                    _sendError!,
+                    style: TextStyle(
+                      color: Colors.red.shade800,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+
             // أزرار الإجراءات
             Container(
               padding: EdgeInsets.all(20),
@@ -449,21 +543,38 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
                 children: [
                   Expanded(
                     child: TextButton(
-                      onPressed: closeDashboardDialog,
+                      onPressed: _isSending ? null : closeDashboardDialog,
                       child: Text('إلغاء'),
                     ),
                   ),
                   SizedBox(width: 16),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: _sendNotification,
+                      onPressed: _isSending ? null : _sendNotification,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.deepPurple,
                         foregroundColor: Colors.white,
+                        disabledBackgroundColor: Colors.deepPurple.withOpacity(0.5),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         padding: EdgeInsets.symmetric(vertical: 16),
                       ),
-                      child: Text('إرسال الإشعار'),
+                      child: _isSending
+                          ? Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: const [
+                                SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                SizedBox(width: 10),
+                                Text('جاري الإرسال...'),
+                              ],
+                            )
+                          : Text('إرسال الإشعار'),
                     ),
                   ),
                 ],
@@ -476,7 +587,17 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
   }
 
   void _sendNotification() async {
-    if (!_formKey.currentState!.validate()) return;
+    setState(() => _sendError = null);
+
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      setState(() {
+        _sendError = 'يرجى تعبئة عنوان الإشعار والرسالة';
+      });
+      return;
+    }
+    if (_isSending) return;
+
+    setState(() => _isSending = true);
 
     try {
       Map<String, dynamic> result;
@@ -485,6 +606,7 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
         final branch = branchController.selectedBranch.value == 'المسؤول' 
             ? null 
             : branchController.selectedBranch.value;
+        final userType = _selectedAudience == 'customers' ? 'زبون' : null;
         result = await notificationController.sendCustomNotificationToAll(
           title: _titleController.text.trim(),
           message: _messageController.text.trim(),
@@ -492,12 +614,13 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
           actionUrl: _actionUrlController.text.trim().isNotEmpty ? _actionUrlController.text.trim() : null,
           data: {
             'type': _selectedType,
-            'timestamp': DateTime.now().millisecondsSinceEpoch,
+            'audience': _selectedAudience,
+            'timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
           },
           branch: branch,
+          userType: userType,
         );
       } else {
-        // استخدام الدالة الجديدة لإرسال إشعار مخصص للمستخدم المحدد
         result = await notificationController.sendCustomNotificationToSpecificUser(
           phoneNumber: _phoneController.text.trim(),
           title: _titleController.text.trim(),
@@ -506,29 +629,47 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
           actionUrl: _actionUrlController.text.trim().isNotEmpty ? _actionUrlController.text.trim() : null,
           data: {
             'type': _selectedType,
-            'timestamp': DateTime.now().millisecondsSinceEpoch,
+            'timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
           },
         );
       }
 
-      if (result['success'] == true || (result['sentCount'] ?? 0) > 0) {
-        if (mounted) {
-          closeDashboardDialog(afterFrame: true);
-        }
-        Get.snackbar(
-          'نجح',
-          'تم إرسال الإشعار بنجاح',
-          backgroundColor: Colors.green,
-          colorText: Colors.white,
-        );
+      if (!mounted) return;
+
+      final success = result['success'] == true || ((result['sentCount'] ?? 0) as num) > 0;
+      final sentCount = result['sentCount'] ?? 0;
+      final message = (result['message'] ?? '').toString();
+
+      if (success) {
+        closeDashboardDialog(afterFrame: true);
+        Future.delayed(const Duration(milliseconds: 200), () {
+          Get.snackbar(
+            'نجح',
+            sentCount > 0
+                ? 'تم إرسال الإشعار إلى $sentCount مستلم'
+                : (message.isNotEmpty ? message : 'تم إرسال الإشعار بنجاح'),
+            backgroundColor: Colors.green,
+            colorText: Colors.white,
+            snackPosition: SnackPosition.TOP,
+          );
+        });
+      } else {
+        setState(() {
+          _sendError = message.isNotEmpty
+              ? message
+              : 'فشل إرسال الإشعار. حاول مرة أخرى';
+        });
       }
     } catch (e) {
-      Get.snackbar(
-        'خطأ',
-        'فشل في إرسال الإشعار: $e',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      if (mounted) {
+        setState(() {
+          _sendError = 'فشل في إرسال الإشعار: $e';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSending = false);
+      }
     }
   }
 }

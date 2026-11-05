@@ -6,6 +6,7 @@ import '../controllers/branch_controller.dart';
 import '../models/order_model.dart';
 import '../widgets/order_card.dart';
 import '../widgets/order_status_dialog.dart';
+import '../widgets/order_bulk_selection_bar.dart';
 import 'order_details_screen.dart';
 
 class OrdersManagementScreen extends StatelessWidget {
@@ -18,11 +19,50 @@ class OrdersManagementScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('إدارة الطلبات'),
+        title: Obx(() => Text(
+              orderController.selectionMode.value
+                  ? 'تحديد الطلبات (${orderController.selectedCount})'
+                  : 'إدارة الطلبات',
+            )),
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
         elevation: 0,
+        leading: Obx(() {
+          if (orderController.selectionMode.value) {
+            return IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: orderController.exitSelectionMode,
+              tooltip: 'إلغاء التحديد',
+            );
+          }
+          return IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Get.back(),
+          );
+        }),
+        automaticallyImplyLeading: false,
         actions: [
+          Obx(() {
+            if (orderController.selectionMode.value) {
+              return IconButton(
+                onPressed: () {
+                  if (orderController.selectedCount ==
+                      orderController.filteredOrders.length) {
+                    orderController.clearSelectedOrders();
+                  } else {
+                    orderController.selectAllVisible();
+                  }
+                },
+                icon: const Icon(Icons.select_all),
+                tooltip: 'تحديد الكل',
+              );
+            }
+            return IconButton(
+              onPressed: orderController.toggleSelectionMode,
+              icon: const Icon(Icons.checklist),
+              tooltip: 'تحديد متعدد',
+            );
+          }),
           // مؤشر الطلبات الجديدة
           Obx(() {
             if (orderController.newOrdersCount.value > 0) {
@@ -82,6 +122,51 @@ class OrdersManagementScreen extends StatelessWidget {
           ),
         ],
       ),
+      bottomNavigationBar: Obx(() {
+        if (!orderController.selectionMode.value) {
+          return const SizedBox.shrink();
+        }
+        // قراءة الطول لضمان تحديث الشريط عند كل تحديد
+        final count = orderController.selectedOrderIds.length;
+        return OrderBulkSelectionBar(
+          selectedCount: count,
+          visibleCount: orderController.filteredOrders.length,
+          accentColor: Colors.deepPurple,
+          onSelectAll: () {
+            if (orderController.selectedCount ==
+                orderController.filteredOrders.length) {
+              orderController.clearSelectedOrders();
+            } else {
+              orderController.selectAllVisible();
+            }
+          },
+          onClearSelection: orderController.clearSelectedOrders,
+          onChangeStatus: () => OrderBulkSelectionBar.showBulkStatusDialog(
+            count: orderController.selectedCount,
+            onConfirm: ({
+              required int status,
+              required String label,
+              String? deliveryTime,
+              int? deliveryDurationMinutes,
+              DateTime? deliveryDeadlineAt,
+            }) =>
+                orderController.updateSelectedOrdersStatus(
+              newStatus: status,
+              newOrderStatus: label,
+              branch: branchController.selectedBranch.value,
+              deliveryTime: deliveryTime,
+              deliveryDurationMinutes: deliveryDurationMinutes,
+              deliveryDeadlineAt: deliveryDeadlineAt,
+            ),
+          ),
+          onDelete: () => OrderBulkSelectionBar.showBulkDeleteDialog(
+            count: orderController.selectedCount,
+            onConfirm: () => orderController.deleteSelectedOrders(
+              branch: branchController.selectedBranch.value,
+            ),
+          ),
+        );
+      }),
       body: Column(
         children: [
           // شريط الإحصائيات
@@ -93,7 +178,14 @@ class OrdersManagementScreen extends StatelessWidget {
           // قائمة الطلبات
           Expanded(
             child: Obx(() {
-              if (orderController.isLoading.value) {
+              // إجبار الاستماع لتغيّر التحديد
+              final selectionMode = orderController.selectionMode.value;
+              final selectedIds =
+                  List<String>.from(orderController.selectedOrderIds);
+              final bulkWorking = orderController.isBulkWorking.value;
+
+              if (orderController.isLoading.value &&
+                  orderController.filteredOrders.isEmpty) {
                 return Center(
                   child: CircularProgressIndicator(
                     color: Colors.deepPurple,
@@ -101,7 +193,8 @@ class OrdersManagementScreen extends StatelessWidget {
                 );
               }
               
-              if (orderController.errorMessage.value.isNotEmpty) {
+              if (orderController.errorMessage.value.isNotEmpty &&
+                  orderController.filteredOrders.isEmpty) {
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -161,33 +254,57 @@ class OrdersManagementScreen extends StatelessWidget {
                 );
               }
               
-              return RefreshIndicator(
-                onRefresh: () => orderController.refresh(branch: branchController.selectedBranch.value),
-                child: ListView.builder(
-                  padding: EdgeInsets.all(16),
-                  itemCount: orderController.filteredOrders.length,
-                  itemBuilder: (context, index) {
-                    final order = orderController.filteredOrders[index];
-                    return OrderCard(
-                      order: order,
-                      onViewDetails: () => _showOrderDetails(order),
-                      onUpdateStatus: () => _showStatusDialog(order),
-                      onDelete: () => _showDeleteConfirmation(order),
-                    );
-                  },
-                ),
+              return Stack(
+                children: [
+                  RefreshIndicator(
+                    onRefresh: () => orderController.refresh(branch: branchController.selectedBranch.value),
+                    child: ListView.builder(
+                      padding: EdgeInsets.all(16),
+                      itemCount: orderController.filteredOrders.length,
+                      itemBuilder: (context, index) {
+                        final order = orderController.filteredOrders[index];
+                        return OrderCard(
+                          order: order,
+                          selectionMode: selectionMode,
+                          isSelected: selectedIds.contains(order.id),
+                          onToggleSelect: () =>
+                              orderController.toggleOrderSelection(order.id),
+                          onViewDetails: () => _showOrderDetails(order),
+                          onUpdateStatus: () => _showStatusDialog(order),
+                          onDelete: () => _showDeleteConfirmation(order),
+                        );
+                      },
+                    ),
+                  ),
+                  if (bulkWorking)
+                    Positioned.fill(
+                      child: Container(
+                        color: Colors.black26,
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                            color: Colors.deepPurple,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               );
             }),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showFilterDialog,
-        icon: Icon(Icons.filter_list),
-        label: Text('فلترة'),
-        backgroundColor: Colors.deepPurple,
-        foregroundColor: Colors.white,
-      ),
+      floatingActionButton: Obx(() {
+        if (orderController.selectionMode.value) {
+          return const SizedBox.shrink();
+        }
+        return FloatingActionButton.extended(
+          onPressed: _showFilterDialog,
+          icon: const Icon(Icons.filter_list),
+          label: const Text('فلترة'),
+          backgroundColor: Colors.deepPurple,
+          foregroundColor: Colors.white,
+        );
+      }),
     );
   }
 
@@ -317,7 +434,7 @@ class OrdersManagementScreen extends StatelessWidget {
                 SizedBox(width: 8),
                 _buildFilterChip('تم التوصيل', 3),
                 SizedBox(width: 8),
-                _buildFilterChip('ملغي', 4),
+                _buildFilterChip('ملغي', 3),
               ],
             ),
           ),

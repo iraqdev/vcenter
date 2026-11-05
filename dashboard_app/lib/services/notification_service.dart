@@ -16,6 +16,7 @@ class NotificationService {
     Map<String, dynamic>? data,
     String? branch,
     String? phoneNumber,
+    String? userType,
   }) async {
     final callable = _functions.httpsCallable('sendNotificationToUsers');
     final result = await callable.call({
@@ -26,6 +27,7 @@ class NotificationService {
       'data': data ?? {},
       'branch': branch,
       'phoneNumber': phoneNumber,
+      if (userType != null && userType.isNotEmpty) 'userType': userType,
     });
     final payload = Map<String, dynamic>.from(result.data as Map);
     return {
@@ -45,6 +47,7 @@ class NotificationService {
     String? actionUrl,
     Map<String, dynamic>? data,
     String? branch, // فلترة حسب الفرع
+    String? userType, // زبون = الزبائن فقط، null = الجميع
   }) async {
     try {
       final response = await _sendViaCloudFunction(
@@ -54,6 +57,7 @@ class NotificationService {
         actionUrl: actionUrl,
         data: data,
         branch: branch,
+        userType: userType,
       );
 
       // حفظ الإشعار في قاعدة البيانات
@@ -265,8 +269,8 @@ class NotificationService {
     String? actionUrl,
     Map<String, dynamic>? data,
     String? branch,
+    String? userType,
   }) async {
-    // استخدام sendToAllUsers لاستهداف العملاء فقط (من Firebase) وليس الداشبورد
     return sendToAllUsers(
       title: title,
       message: message,
@@ -274,6 +278,7 @@ class NotificationService {
       actionUrl: actionUrl,
       data: data,
       branch: branch,
+      userType: userType,
     );
   }
 

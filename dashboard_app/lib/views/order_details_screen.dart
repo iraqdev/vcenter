@@ -4,6 +4,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../models/order_model.dart';
 import '../utils/image_utils.dart';
 import '../utils/order_location_utils.dart';
+import '../utils/whatsapp_launcher.dart';
+import '../utils/delivery_duration_utils.dart';
 import '../widgets/order_status_dialog.dart';
 
 class OrderDetailsScreen extends StatelessWidget {
@@ -161,15 +163,19 @@ class OrderDetailsScreen extends StatelessWidget {
                     color: statusColor,
                   ),
                 ),
-                if (order.deliveryTime != null && order.deliveryTime!.isNotEmpty) ...[
+                if (order.deliveryDurationMinutes != null ||
+                    (order.deliveryTime != null &&
+                        order.deliveryTime!.isNotEmpty)) ...[
                   SizedBox(height: 6),
                   Row(
                     children: [
-                      Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
+                      Icon(Icons.timer_outlined, size: 16, color: Colors.blue[700]),
                       SizedBox(width: 6),
-                      Text(
-                        'وقت التوصيل: ${order.deliveryTime}',
-                        style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                      Expanded(
+                        child: Text(
+                          'وقت التوصيل: ${order.deliveryTime ?? DeliveryDurationUtils.formatArabic(order.deliveryDurationMinutes ?? 0)}',
+                          style: TextStyle(fontSize: 13, color: Colors.blue[800]),
+                        ),
                       ),
                     ],
                   ),
@@ -183,18 +189,31 @@ class OrderDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildCustomerSection() {
+    final loc = orderLocationInfo(order);
     return _buildSectionCard(
       icon: Icons.person_outline,
       iconColor: Colors.blue,
       title: 'معلومات العميل',
       children: [
         _buildInfoRow(Icons.badge_outlined, 'الاسم', order.name),
-        _buildInfoRow(Icons.phone_android, 'رقم الهاتف', order.userPhone),
-        if (formatOrderLocation(order.city, order.address).isNotEmpty)
+        _buildPhoneRow(order.userPhone),
+        if (loc.governorate.isNotEmpty)
           _buildInfoRow(
             Icons.location_on_outlined,
-            order.city.trim() == 'بغداد' ? 'بغداد والمنطقة' : 'المحافظة',
-            formatOrderLocation(order.city, order.address),
+            loc.primaryLabel,
+            loc.governorate,
+          ),
+        if (loc.secondaryLabel != null && loc.secondaryValue != null)
+          _buildInfoRow(
+            Icons.map_outlined,
+            loc.secondaryLabel!,
+            loc.secondaryValue!,
+          ),
+        if (loc.landmarkLabel != null)
+          _buildInfoRow(
+            Icons.flag_outlined,
+            loc.landmarkLabel!,
+            loc.landmark,
           ),
         if (order.closestBranch != null && order.closestBranch!.isNotEmpty)
           _buildInfoRow(Icons.store, 'الفرع الأقرب', order.closestBranch!),
@@ -203,14 +222,16 @@ class OrderDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildDeliverySection() {
-    if (order.near.isEmpty && order.nearpoint.isEmpty) return SizedBox.shrink();
+    final loc = orderLocationInfo(order);
+    final showNear =
+        order.near.isNotEmpty && order.near.trim() != loc.landmark.trim();
+    if (!showNear) return SizedBox.shrink();
     return _buildSectionCard(
       icon: Icons.local_shipping_outlined,
       iconColor: Colors.orange,
       title: 'موقع التوصيل',
       children: [
-        if (order.near.isNotEmpty) _buildInfoRow(Icons.place, 'الموقع', order.near),
-        if (order.nearpoint.isNotEmpty) _buildInfoRow(Icons.flag, 'نقطة قريبة', order.nearpoint),
+        _buildInfoRow(Icons.place, 'الموقع', order.near),
       ],
     );
   }
@@ -410,6 +431,60 @@ class OrderDetailsScreen extends StatelessWidget {
           ),
           SizedBox(height: 16),
           ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPhoneRow(String phone) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.phone_android, size: 18, color: Colors.grey[500]),
+          const SizedBox(width: 10),
+          const SizedBox(
+            width: 100,
+            child: Text(
+              'رقم الهاتف:',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Expanded(
+            child: InkWell(
+              onTap: () => WhatsAppLauncher.openChat(phone),
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  children: [
+                    Icon(Icons.chat, size: 16, color: Colors.green.shade700),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        phone.isNotEmpty ? phone : 'لا يوجد رقم',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: phone.isNotEmpty
+                              ? Colors.green.shade800
+                              : Colors.grey,
+                          decoration: phone.isNotEmpty
+                              ? TextDecoration.underline
+                              : null,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

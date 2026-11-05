@@ -86,7 +86,10 @@ class CategoryService {
   // إضافة فئة جديدة
   static Future<String?> addCategory(CategoryModel category) async {
     try {
-      final docRef = await _db.collection(_collection).add(category.toFirestore());
+      final data = category.toFirestore();
+      data['createdAt'] = FieldValue.serverTimestamp();
+      data['updatedAt'] = FieldValue.serverTimestamp();
+      final docRef = await _db.collection(_collection).add(data);
       return docRef.id;
     } catch (e) {
       print('خطأ في إضافة الفئة: $e');

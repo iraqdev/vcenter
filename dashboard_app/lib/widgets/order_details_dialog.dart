@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../models/order_model.dart';
 import '../utils/image_utils.dart';
+import '../utils/order_location_utils.dart';
+import '../utils/whatsapp_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 class OrderDetailsDialog extends StatelessWidget {
@@ -72,9 +74,8 @@ class OrderDetailsDialog extends StatelessWidget {
                       icon: Icons.person,
                       children: [
                         _buildInfoRow('الاسم', order.name),
-                        _buildInfoRow('رقم الهاتف', order.userPhone),
-                        if (order.address.isNotEmpty)
-                          _buildInfoRow('العنوان', '${order.address}, ${order.city}'),
+                        _buildPhoneRow(order.userPhone),
+                        ..._locationRows(),
                       ],
                     ),
                     
@@ -109,6 +110,17 @@ class OrderDetailsDialog extends StatelessWidget {
                                   color: _getStatusColor(),
                                 ),
                               ),
+                              if (order.isPaidOnline) ...[
+                                SizedBox(width: 8),
+                                Text(
+                                  '· دفع أونلاين',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.teal[700],
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -242,7 +254,7 @@ class OrderDetailsDialog extends StatelessWidget {
                       title: 'معلومات الدفع والتوصيل',
                       icon: Icons.payment,
                       children: [
-                        _buildInfoRow('طريقة الدفع', 'نقدي'), // يمكن إضافة paymentMethod لاحقاً إذا كان موجوداً في البيانات
+                        _buildInfoRow('طريقة الدفع', order.paymentMethod),
                         _buildInfoRow('المبلغ الإجمالي', order.formattedTotalAmount),
                         _buildInfoRow('تاريخ الطلب', order.formattedCreatedAt),
                         if (order.updatedAt != null)
@@ -299,6 +311,21 @@ class OrderDetailsDialog extends StatelessWidget {
     );
   }
 
+  List<Widget> _locationRows() {
+    final loc = orderLocationInfo(order);
+    final rows = <Widget>[];
+    if (loc.governorate.isNotEmpty) {
+      rows.add(_buildInfoRow(loc.primaryLabel, loc.governorate));
+    }
+    if (loc.secondaryLabel != null && loc.secondaryValue != null) {
+      rows.add(_buildInfoRow(loc.secondaryLabel!, loc.secondaryValue!));
+    }
+    if (loc.landmarkLabel != null) {
+      rows.add(_buildInfoRow(loc.landmarkLabel!, loc.landmark));
+    }
+    return rows;
+  }
+
   Widget _buildSection({
     required String title,
     required IconData icon,
@@ -324,6 +351,54 @@ class OrderDetailsDialog extends StatelessWidget {
         SizedBox(height: 12),
         ...children,
       ],
+    );
+  }
+
+  Widget _buildPhoneRow(String phone) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(
+            width: 100,
+            child: Text(
+              'رقم الهاتف:',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+          Expanded(
+            child: InkWell(
+              onTap: () => WhatsAppLauncher.openChat(phone),
+              child: Row(
+                children: [
+                  Icon(Icons.chat, size: 16, color: Colors.green.shade700),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      phone.isNotEmpty ? phone : 'لا يوجد رقم',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: phone.isNotEmpty
+                            ? Colors.green.shade800
+                            : Colors.grey,
+                        decoration: phone.isNotEmpty
+                            ? TextDecoration.underline
+                            : null,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

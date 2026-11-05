@@ -35,6 +35,7 @@ class OrderController extends GetxController {
   final AudioService _audioService = AudioService();
 
   StreamSubscription? _ordersListener;
+  Timer? _purgeTimer;
 
   /// إزالة أي تكرار لنفس مستند Firestore (نفس [OrderModel.id]) في القائمة المعروضة.
   List<OrderModel> _uniqueOrdersById(List<OrderModel> list) {
@@ -59,10 +60,18 @@ class OrderController extends GetxController {
     fetchOrders(branch: branchController.selectedBranch.value);
     fetchStats();
     _startOrdersListener(branchController.selectedBranch.value);
+    _purgeTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (isClosed) return;
+      final branch = Get.find<BranchController>().selectedBranch.value;
+      OrderService.purgeExpiredCancelledOrders().then((_) {
+        if (!isClosed) fetchOrders(branch: branch, showLoading: false);
+      });
+    });
     
     // الاستماع لتغييرات الفرع
     branchController.selectedBranch.listen((branch) {
       print('🔄 OrderController - تم تغيير الفرع إلى: $branch');
+      exitSelectionMode();
       fetchOrders(branch: branch);
       fetchStats();
       _startOrdersListener(branch);
@@ -71,6 +80,7 @@ class OrderController extends GetxController {
 
   @override
   void onClose() {
+    _purgeTimer?.cancel();
     _ordersListener?.cancel();
     super.onClose();
   }
@@ -114,9 +124,12 @@ class OrderController extends GetxController {
   }
 
   // جلب جميع الطلبات
-  Future<void> fetchOrders({String? branch}) async {
+  Future<void> fetchOrders({String? branch, bool showLoading = true}) async {
     try {
-      isLoading.value = true;
+      // لا نخفي القائمة أثناء وضع التحديد أو التحديث الصامت
+      if (showLoading && !selectionMode.value && selectedOrderIds.isEmpty) {
+        isLoading.value = true;
+      }
       errorMessage.value = '';
       
       print('🔄 OrderController - جلب الطلبات للفرع: ${branch ?? "الكل"}');
@@ -125,6 +138,7 @@ class OrderController extends GetxController {
       final fetchedOrders = _uniqueOrdersById(raw);
       orders.value = fetchedOrders;
       filteredOrders.value = fetchedOrders;
+      _pruneSelectionToVisible();
       
       // التحقق من الطلبات الجديدة
       await _checkForNewOrders(fetchedOrders);
@@ -253,7 +267,7 @@ class OrderController extends GetxController {
   }
 
   // تحديث حالة الطلب
-  Future<bool> updateOrderStatus(String orderId, int newStatus, String newOrderStatus, {String? deliveryTime}) async {
+  Future<bool> updateOrderStatus(String orderId, int newStatus, String newOrderStatus, {String? deliveryTime, String? customerMessage, int? deliveryDurationMinutes, DateTime? deliveryDeadlineAt}) async {
     try {
       isLoading.value = true;
       
@@ -263,7 +277,15 @@ class OrderController extends GetxController {
       final order = orders.firstWhere((o) => o.id == orderId);
       print('الطلب الحالي: ${order.name} - الحالة: ${order.status} (${order.orderstatus})');
       
-      final success = await OrderService.updateOrderStatus(orderId, newStatus, newOrderStatus, deliveryTime: deliveryTime);
+      final success = await OrderService.updateOrderStatus(
+        orderId,
+        newStatus,
+        newOrderStatus,
+        deliveryTime: deliveryTime,
+        customerMessage: customerMessage,
+        deliveryDurationMinutes: deliveryDurationMinutes,
+        deliveryDeadlineAt: deliveryDeadlineAt,
+      );
       print('نتيجة التحديث في Firebase: $success');
       
       if (success) {
@@ -272,7 +294,13 @@ class OrderController extends GetxController {
           status: newStatus, 
           orderstatus: newOrderStatus,
           updatedAt: DateTime.now(),
-          deliveryTime: deliveryTime, // إضافة تحديث وقت التوصيل
+          deliveryTime: deliveryTime ?? order.deliveryTime,
+          customerMessage: customerMessage?.trim().isEmpty == true
+              ? null
+              : (customerMessage ?? order.customerMessage),
+          deliveryDurationMinutes:
+              deliveryDurationMinutes ?? order.deliveryDurationMinutes,
+          deliveryDeadlineAt: deliveryDeadlineAt ?? order.deliveryDeadlineAt,
         );
         final index = orders.indexWhere((o) => o.id == orderId);
         if (index != -1) {
@@ -292,6 +320,13 @@ class OrderController extends GetxController {
         if (order.status != newStatus) {
           await sendOrderStatusUpdateNotification(updatedOrder, newOrderStatus);
           print('تم إرسال الإشعار للعميل');
+        } else if (customerMessage != null &&
+            customerMessage.trim().isNotEmpty &&
+            customerMessage.trim() != (order.customerMessage ?? '')) {
+          await _sendCustomerMessageNotification(updatedOrder, customerMessage.trim());
+        } else if (deliveryDurationMinutes != null &&
+            deliveryDurationMinutes != order.deliveryDurationMinutes) {
+          await sendOrderStatusUpdateNotification(updatedOrder, newOrderStatus);
         }
         
         // تم إزالة إشعار النجاح
@@ -383,7 +418,7 @@ class OrderController extends GetxController {
 
   // تحديث البيانات
   Future<void> refresh({String? branch}) async {
-    await fetchOrders(branch: branch);
+    await fetchOrders(branch: branch, showLoading: false);
     await fetchStats();
   }
 
@@ -481,6 +516,28 @@ class OrderController extends GetxController {
     }
   }
 
+  // إرسال إشعار برسالة مخصصة للعميل (بدون تغيير الحالة)
+  Future<void> _sendCustomerMessageNotification(
+    OrderModel order,
+    String message,
+  ) async {
+    try {
+      final notificationController = Get.find<NotificationController>();
+      await notificationController.sendToSpecificUser(
+        phoneNumber: order.userPhone,
+        title: 'تحديث على طلبك 📋',
+        message: message,
+        data: {
+          'type': 'order_customer_message',
+          'orderId': order.id,
+          'customerMessage': message,
+        },
+      );
+    } catch (e) {
+      print('❌ خطأ في إرسال رسالة العميل: $e');
+    }
+  }
+
   // إرسال إشعار عند تحديث حالة الطلب
   Future<void> sendOrderStatusUpdateNotification(OrderModel order, String newStatus) async {
     try {
@@ -493,8 +550,9 @@ class OrderController extends GetxController {
       switch (order.status) {
         case 1: // جاري التوصيل
           title = 'طلبك في الطريق 🚚';
-          String deliveryTimeText = order.deliveryTime != null ? ' (${order.deliveryTime})' : '';
-          message = 'طلبك رقم #${order.id.substring(0, 8)} في الطريق إليك الآن$deliveryTimeText';
+          final msg = (order.deliveryTime ?? '').trim();
+          final extra = msg.isNotEmpty ? '\nوقت التوصيل المتوقع: $msg' : '';
+          message = 'طلبك رقم #${order.id.substring(0, 8)} في الطريق إليك الآن$extra';
           break;
         case 2: // تم الاستلام
           title = 'تم استلام طلبك ✅';
@@ -518,6 +576,7 @@ class OrderController extends GetxController {
             'status': order.status,
             'statusText': newStatus,
             'deliveryTime': order.deliveryTime,
+            'customerMessage': order.customerMessage,
           },
         );
         
@@ -531,6 +590,146 @@ class OrderController extends GetxController {
   // مسح عداد الطلبات الجديدة
   void clearNewOrdersCount() {
     newOrdersCount.value = 0;
+  }
+
+  // --- تحديد متعدد وحذف جماعي ---
+  final RxBool selectionMode = false.obs;
+  final RxList<String> selectedOrderIds = <String>[].obs;
+  final RxBool isBulkWorking = false.obs;
+
+  int get selectedCount => selectedOrderIds.length;
+
+  bool isOrderSelected(String orderId) => selectedOrderIds.contains(orderId);
+
+  void toggleSelectionMode() {
+    selectionMode.value = !selectionMode.value;
+    if (!selectionMode.value) {
+      selectedOrderIds.clear();
+    }
+    selectedOrderIds.refresh();
+  }
+
+  void exitSelectionMode() {
+    selectionMode.value = false;
+    selectedOrderIds.clear();
+    selectedOrderIds.refresh();
+  }
+
+  void toggleOrderSelection(String orderId) {
+    if (orderId.isEmpty) return;
+    if (selectedOrderIds.contains(orderId)) {
+      selectedOrderIds.remove(orderId);
+    } else {
+      selectedOrderIds.add(orderId);
+    }
+    // ضمان إعادة بناء الواجهة فوراً
+    selectedOrderIds.refresh();
+  }
+
+  void selectAllVisible() {
+    selectedOrderIds.assignAll(
+      filteredOrders.map((o) => o.id).where((id) => id.isNotEmpty),
+    );
+    selectedOrderIds.refresh();
+  }
+
+  void clearSelectedOrders() {
+    selectedOrderIds.clear();
+    selectedOrderIds.refresh();
+  }
+
+  void _pruneSelectionToVisible() {
+    if (selectedOrderIds.isEmpty) return;
+    final visibleIds = orders.map((o) => o.id).toSet();
+    selectedOrderIds.removeWhere((id) => !visibleIds.contains(id));
+    selectedOrderIds.refresh();
+  }
+
+  Future<int> deleteSelectedOrders({String? branch}) async {
+    if (selectedOrderIds.isEmpty) return 0;
+    try {
+      isBulkWorking.value = true;
+      final ids = List<String>.from(selectedOrderIds);
+      final deleted = await OrderService.deleteOrders(ids);
+      if (deleted > 0) {
+        exitSelectionMode();
+        await fetchOrders(branch: branch, showLoading: false);
+        await fetchStats();
+        Get.snackbar(
+          'تم الحذف',
+          'تم حذف $deleted طلب',
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
+      }
+      return deleted;
+    } catch (e) {
+      Get.snackbar('خطأ', 'فشل حذف الطلبات: $e',
+          backgroundColor: Colors.red, colorText: Colors.white);
+      return 0;
+    } finally {
+      isBulkWorking.value = false;
+    }
+  }
+
+  Future<int> updateSelectedOrdersStatus({
+    required int newStatus,
+    required String newOrderStatus,
+    String? branch,
+    String? deliveryTime,
+    int? deliveryDurationMinutes,
+    DateTime? deliveryDeadlineAt,
+  }) async {
+    if (selectedOrderIds.isEmpty) return 0;
+    try {
+      isBulkWorking.value = true;
+      final ids = List<String>.from(selectedOrderIds);
+      final selectedOrders =
+          orders.where((o) => ids.contains(o.id)).toList();
+      final updated = await OrderService.updateOrdersStatus(
+        ids,
+        newStatus,
+        newOrderStatus,
+        deliveryTime: deliveryTime,
+        deliveryDurationMinutes: deliveryDurationMinutes,
+        deliveryDeadlineAt: deliveryDeadlineAt,
+      );
+      if (updated > 0) {
+        for (final order in selectedOrders) {
+          if (order.status == newStatus &&
+              deliveryDurationMinutes == null) {
+            continue;
+          }
+          final updatedOrder = order.copyWith(
+            status: newStatus,
+            orderstatus: newOrderStatus,
+            updatedAt: DateTime.now(),
+            deliveryTime: deliveryTime ?? order.deliveryTime,
+            deliveryDurationMinutes:
+                deliveryDurationMinutes ?? order.deliveryDurationMinutes,
+            deliveryDeadlineAt:
+                deliveryDeadlineAt ?? order.deliveryDeadlineAt,
+          );
+          await sendOrderStatusUpdateNotification(updatedOrder, newOrderStatus);
+        }
+        exitSelectionMode();
+        await fetchOrders(branch: branch, showLoading: false);
+        await fetchStats();
+        Get.snackbar(
+          'تم التحديث',
+          'تم تغيير حالة $updated طلب إلى "$newOrderStatus"',
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
+      }
+      return updated;
+    } catch (e) {
+      Get.snackbar('خطأ', 'فشل تحديث حالة الطلبات: $e',
+          backgroundColor: Colors.red, colorText: Colors.white);
+      return 0;
+    } finally {
+      isBulkWorking.value = false;
+    }
   }
   
   // اختبار الصوت

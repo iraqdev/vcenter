@@ -5,6 +5,7 @@ import '../controllers/customer_order_controller.dart';
 import '../models/order_model.dart';
 import '../widgets/order_card.dart';
 import '../widgets/order_status_dialog.dart';
+import '../widgets/order_bulk_selection_bar.dart';
 import 'order_details_screen.dart';
 
 class CustomerOrdersScreen extends StatelessWidget {
@@ -18,11 +19,50 @@ class CustomerOrdersScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('طلبات الزبائن'),
+        title: Obx(() => Text(
+              controller.selectionMode.value
+                  ? 'تحديد طلبات الزبائن (${controller.selectedCount})'
+                  : 'طلبات الزبائن',
+            )),
         backgroundColor: _accent,
         foregroundColor: Colors.white,
         elevation: 0,
+        leading: Obx(() {
+          if (controller.selectionMode.value) {
+            return IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: controller.exitSelectionMode,
+              tooltip: 'إلغاء التحديد',
+            );
+          }
+          return IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Get.back(),
+          );
+        }),
+        automaticallyImplyLeading: false,
         actions: [
+          Obx(() {
+            if (controller.selectionMode.value) {
+              return IconButton(
+                onPressed: () {
+                  if (controller.selectedCount ==
+                      controller.filteredOrders.length) {
+                    controller.clearSelectedOrders();
+                  } else {
+                    controller.selectAllVisible();
+                  }
+                },
+                icon: const Icon(Icons.select_all),
+                tooltip: 'تحديد الكل',
+              );
+            }
+            return IconButton(
+              onPressed: controller.toggleSelectionMode,
+              icon: const Icon(Icons.checklist),
+              tooltip: 'تحديد متعدد',
+            );
+          }),
           Obx(() {
             if (controller.newOrdersCount.value > 0) {
               return Stack(
@@ -73,18 +113,68 @@ class CustomerOrdersScreen extends StatelessWidget {
           ),
         ],
       ),
+      bottomNavigationBar: Obx(() {
+        if (!controller.selectionMode.value) {
+          return const SizedBox.shrink();
+        }
+        final count = controller.selectedOrderIds.length;
+        return OrderBulkSelectionBar(
+          selectedCount: count,
+          visibleCount: controller.filteredOrders.length,
+          accentColor: _accent,
+          onSelectAll: () {
+            if (controller.selectedCount == controller.filteredOrders.length) {
+              controller.clearSelectedOrders();
+            } else {
+              controller.selectAllVisible();
+            }
+          },
+          onClearSelection: controller.clearSelectedOrders,
+          onChangeStatus: () => OrderBulkSelectionBar.showBulkStatusDialog(
+            count: controller.selectedCount,
+            itemLabel: 'طلب زبون',
+            accentColor: _accent,
+            onConfirm: ({
+              required int status,
+              required String label,
+              String? deliveryTime,
+              int? deliveryDurationMinutes,
+              DateTime? deliveryDeadlineAt,
+            }) =>
+                controller.updateSelectedOrdersStatus(
+              newStatus: status,
+              newOrderStatus: label,
+              deliveryTime: deliveryTime,
+              deliveryDurationMinutes: deliveryDurationMinutes,
+              deliveryDeadlineAt: deliveryDeadlineAt,
+            ),
+          ),
+          onDelete: () => OrderBulkSelectionBar.showBulkDeleteDialog(
+            count: controller.selectedCount,
+            itemLabel: 'طلب زبون',
+            onConfirm: controller.deleteSelectedOrders,
+          ),
+        );
+      }),
       body: Column(
         children: [
           _buildStatsBar(),
           _buildSearchBar(),
           Expanded(
             child: Obx(() {
-              if (controller.isLoading.value) {
+              final selectionMode = controller.selectionMode.value;
+              final selectedIds =
+                  List<String>.from(controller.selectedOrderIds);
+              final bulkWorking = controller.isBulkWorking.value;
+
+              if (controller.isLoading.value &&
+                  controller.filteredOrders.isEmpty) {
                 return const Center(
                   child: CircularProgressIndicator(color: _accent),
                 );
               }
-              if (controller.errorMessage.value.isNotEmpty) {
+              if (controller.errorMessage.value.isNotEmpty &&
+                  controller.filteredOrders.isEmpty) {
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -129,24 +219,41 @@ class CustomerOrdersScreen extends StatelessWidget {
                   ),
                 );
               }
-              return RefreshIndicator(
-                onRefresh: controller.refresh,
-                color: _accent,
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: controller.filteredOrders.length,
-                  itemBuilder: (context, index) {
-                    final order = controller.filteredOrders[index];
-                    return OrderCard(
-                      order: order,
-                      onViewDetails: () => Get.to(
-                        () => OrderDetailsScreen(order: order),
+              return Stack(
+                children: [
+                  RefreshIndicator(
+                    onRefresh: controller.refresh,
+                    color: _accent,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: controller.filteredOrders.length,
+                      itemBuilder: (context, index) {
+                        final order = controller.filteredOrders[index];
+                        return OrderCard(
+                          order: order,
+                          selectionMode: selectionMode,
+                          isSelected: selectedIds.contains(order.id),
+                          onToggleSelect: () =>
+                              controller.toggleOrderSelection(order.id),
+                          onViewDetails: () => Get.to(
+                            () => OrderDetailsScreen(order: order),
+                          ),
+                          onUpdateStatus: () => _showStatusDialog(order),
+                          onDelete: () => _showDeleteConfirmation(order),
+                        );
+                      },
+                    ),
+                  ),
+                  if (bulkWorking)
+                    Positioned.fill(
+                      child: Container(
+                        color: Colors.black26,
+                        child: const Center(
+                          child: CircularProgressIndicator(color: _accent),
+                        ),
                       ),
-                      onUpdateStatus: () => _showStatusDialog(order),
-                      onDelete: () => _showDeleteConfirmation(order),
-                    );
-                  },
-                ),
+                    ),
+                ],
               );
             }),
           ),

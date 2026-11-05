@@ -220,9 +220,14 @@ class ProductController extends GetxController {
         });
         
         print('🎉 ProductController - تم تحديث المنتج بنجاح!');
-        // إزالة رسالة النجاح المكررة من هنا لأنها ستظهر من ProductCard
       } else {
         print('❌ ProductController - فشل في تحديث المنتج');
+        Get.snackbar(
+          'خطأ',
+          'فشل تحديث المنتج في قاعدة البيانات',
+          backgroundColor: Get.theme.colorScheme.error,
+          colorText: Get.theme.colorScheme.onError,
+        );
       }
       
       return success;
@@ -237,6 +242,47 @@ class ProductController extends GetxController {
       return false;
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  /// تحديث سعر الزبون المخصص (يُعرض كما هو بدون +4000).
+  Future<bool> updateCustomerPrice(String productId, int? customerPrice) async {
+    try {
+      final success =
+          await ProductService.updateCustomerPrice(productId, customerPrice);
+      if (success) {
+        final index = products.indexWhere((p) => p.id == productId);
+        if (index != -1) {
+          products[index] = products[index].copyWith(
+            customerPrice: customerPrice,
+            clearCustomerPrice: customerPrice == null,
+            showForCustomer: customerPrice == null
+                ? products[index].showForCustomer
+                : true,
+          );
+        }
+        final fIndex = filteredProducts.indexWhere((p) => p.id == productId);
+        if (fIndex != -1) {
+          filteredProducts[fIndex] = filteredProducts[fIndex].copyWith(
+            customerPrice: customerPrice,
+            clearCustomerPrice: customerPrice == null,
+            showForCustomer: customerPrice == null
+                ? filteredProducts[fIndex].showForCustomer
+                : true,
+          );
+        }
+        products.refresh();
+        filteredProducts.refresh();
+      }
+      return success;
+    } catch (e) {
+      Get.snackbar(
+        'خطأ',
+        'فشل تحديث سعر الزبون: $e',
+        backgroundColor: Get.theme.colorScheme.error,
+        colorText: Get.theme.colorScheme.onError,
+      );
+      return false;
     }
   }
 

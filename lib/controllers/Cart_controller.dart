@@ -11,6 +11,7 @@ import 'package:ecommerce/main.dart';
 import 'package:ecommerce/Services/RemoteServices.dart';
 import 'package:ecommerce/services/dnz_payment_service.dart';
 import 'package:ecommerce/utils/delivery_utils.dart';
+import 'package:ecommerce/utils/quantity_discount_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class Cart_controller extends GetxController {
@@ -24,6 +25,14 @@ class Cart_controller extends GetxController {
   Timer? _paymentPollTimer;
   bool _paymentPollBusy = false;
 
+  @override
+  void onInit() {
+    super.onInit();
+    loadQuantityDiscountConfig().then((_) {
+      PlusAllData();
+    });
+  }
+
   void PlusAllData() {
     total = 0;
     for (var i = 0; i < BoxCart.length; ++i) {
@@ -31,7 +40,10 @@ class Cart_controller extends GetxController {
       if (item != null) {
         int price = item.price;
         int count = item.count;
-        total += price * count;
+        total += lineTotalWithQuantityDiscount(
+          unitPrice: price,
+          quantity: count,
+        );
       }
     }
     refreshCount();
@@ -135,7 +147,7 @@ class Cart_controller extends GetxController {
       for (var i = 0; i < BoxCart.length; ++i) {
         var item = BoxCart.getAt(i);
         if (item != null) {
-          totalCount += item.count as int;
+          totalCount += item.count;
         }
       }
       print('Total : ${totalCount}');
@@ -308,12 +320,18 @@ class Cart_controller extends GetxController {
     for (int x = 0; x < BoxCart.length; x++) {
       final cartItem = BoxCart.getAt(x);
       if (cartItem == null) continue;
+      final count = cartItem.count;
+      final unitPrice = cartItem.price;
       list.add({
         'title': cartItem.title,
         'image': cartItem.image,
-        'count': cartItem.count,
+        'count': count,
         'id': cartItem.id,
-        'price': cartItem.price,
+        'price': unitPrice,
+        'lineTotal': lineTotalWithQuantityDiscount(
+          unitPrice: unitPrice,
+          quantity: count,
+        ),
         'color': cartItem.color,
         'size': cartItem.size,
       });
@@ -462,14 +480,6 @@ class Cart_controller extends GetxController {
     deleteAll();
     PlusAllData();
     return true;
-  }
-
-  @override
-  void onInit() {
-    PlusAllData();
-    print('rady');
-    // TODO: implement onInit
-    super.onInit();
   }
 
   @override

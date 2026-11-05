@@ -10,6 +10,7 @@ import 'package:ecommerce/models/Product.dart';
 import 'package:ecommerce/models/ProductsModel.dart';
 import 'package:ecommerce/models/SizeModel.dart';
 import '../Services/RemoteServices.dart';
+import '../utils/quantity_discount_utils.dart';
 
 class Product_controller extends GetxController {
   var isLoadingItem = false.obs;
@@ -138,7 +139,7 @@ class Product_controller extends GetxController {
   void onInit() {
     id = argumentData[0]['id'];
     fetchProduct();
-    // TODO: implement onInit
+    loadQuantityDiscountConfig().then((_) => update());
     super.onInit();
   }
 }

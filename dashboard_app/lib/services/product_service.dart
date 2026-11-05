@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/product_model.dart';
+import '../models/pos_item_model.dart';
 
 class ProductService {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -100,7 +101,8 @@ class ProductService {
   // إضافة منتج جديد
   static Future<bool> addProduct(ProductModel product) async {
     try {
-      await _db.collection(_collection).doc(product.id).set(product.toFirestore());
+      final data = product.toFirestore()..removeWhere((_, v) => v == null);
+      await _db.collection(_collection).doc(product.id).set(data);
       return true;
     } catch (e) {
       print('خطأ في إضافة المنتج: $e');
@@ -115,12 +117,32 @@ class ProductService {
       print('   - ID: ${product.id}');
       print('   - العنوان: ${product.title}');
       print('   - الرسائل: ${product.branchMessages}');
-      
-      final firestoreData = product.toFirestore();
+      print('   - showForStore: ${product.showForStore}');
+      print('   - showForCustomer: ${product.showForCustomer}');
+      print('   - customerPrice: ${product.customerPrice}');
+
+      final firestoreData = product.toFirestore()
+        ..removeWhere((_, v) => v == null);
+      // لا نعيد كتابة تاريخ الإنشاء عند التحديث
+      firestoreData.remove('createdAt');
+      firestoreData['updatedAt'] = FieldValue.serverTimestamp();
+
+      // حذف الحقول الملغاة بدل تمرير null (يرفضه Firestore.update)
+      if (product.customerPrice == null) {
+        firestoreData['customerPrice'] = FieldValue.delete();
+      }
+      if (product.subCategory == null) {
+        firestoreData['subCategory'] = FieldValue.delete();
+      }
+
       print('📝 ProductService - بيانات Firestore: $firestoreData');
-      
-      await _db.collection(_collection).doc(product.id).update(firestoreData);
-      
+
+      // merge أوثق من update عند وجود حقول جديدة/ناقصة في المستندات القديمة
+      await _db.collection(_collection).doc(product.id).set(
+            firestoreData,
+            SetOptions(merge: true),
+          );
+
       print('✅ ProductService - تم تحديث المنتج بنجاح في Firestore');
       return true;
     } catch (e) {
@@ -150,6 +172,33 @@ class ProductService {
       return true;
     } catch (e) {
       print('خطأ في تحديث حالة المنتج: $e');
+      return false;
+    }
+  }
+
+  /// تحديث أو حذف سعر الزبون المخصص (بدون المساس بسعر المحلات).
+  /// عند تعيين سعر زبون يُفعَّل أيضاً showForCustomer ليظهر للزبائن.
+  static Future<bool> updateCustomerPrice(
+    String productId,
+    int? customerPrice,
+  ) async {
+    try {
+      final data = <String, dynamic>{
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      if (customerPrice == null) {
+        data['customerPrice'] = FieldValue.delete();
+      } else {
+        data['customerPrice'] = customerPrice;
+        data['showForCustomer'] = true;
+      }
+      await _db.collection(_collection).doc(productId).set(
+            data,
+            SetOptions(merge: true),
+          );
+      return true;
+    } catch (e) {
+      print('خطأ في تحديث سعر الزبون: $e');
       return false;
     }
   }
@@ -244,6 +293,37 @@ class ProductService {
         'active': 0,
         'inactive': 0,
       };
+    }
+  }
+
+  static Future<bool> linkProductToPos({
+    required String productId,
+    required PosItemModel posItem,
+  }) async {
+    try {
+      await _db.collection(_collection).doc(productId).update({
+        'posLink': posItem.toPosLinkMap(),
+        'stock': posItem.balance,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return true;
+    } catch (e) {
+      print('خطأ في ربط المنتج بـ POS: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> unlinkProductFromPos(String productId) async {
+    try {
+      await _db.collection(_collection).doc(productId).update({
+        'posLink': FieldValue.delete(),
+        'stock': FieldValue.delete(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return true;
+    } catch (e) {
+      print('خطأ في إلغاء ربط المنتج: $e');
+      return false;
     }
   }
 }
